@@ -389,7 +389,11 @@ public:
   // The range version is a member template, so we dispatch on whether
   // or not the type is an integer.
 
-  void assign(size_type __n, const _Tp& __val);
+  void assign(size_type __n, const _Tp& __val)
+    { _M_fill_assign(__n, __val); }
+
+  void _M_fill_assign(size_type __n, const _Tp& __val);
+
 
 #ifdef __STL_MEMBER_TEMPLATES
 
@@ -401,7 +405,7 @@ public:
 
   template <class _Integer>
   void _M_assign_dispatch(_Integer __n, _Integer __val, __true_type)
-    { assign((size_type) __n, (_Tp) __val); }
+    { _M_fill_assign((size_type) __n, (_Tp) __val); }
 
   template <class _InputIterator>
   void _M_assign_dispatch(_InputIterator __first, _InputIterator __last,
@@ -700,7 +704,7 @@ slist<_Tp,_Alloc>& slist<_Tp,_Alloc>::operator=(const slist<_Tp,_Alloc>& __x)
 }
 
 template <class _Tp, class _Alloc>
-void slist<_Tp, _Alloc>::assign(size_type __n, const _Tp& __val) {
+void slist<_Tp, _Alloc>::_M_fill_assign(size_type __n, const _Tp& __val) {
   _Node_base* __prev = &_M_head;
   _Node* __node = (_Node*) _M_head._M_next;
   for ( ; __node != 0 && __n > 0 ; --__n) {

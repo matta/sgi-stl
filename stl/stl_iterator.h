@@ -711,8 +711,13 @@ public:
     { return _M_is_initialized ? _M_c : _M_dereference_aux(); }
 
   istreambuf_iterator& operator++() { this->_M_nextc(); return *this; }
-  istreambuf_iterator  operator++(int) 
-    { istreambuf_iterator __tmp = *this; this->_M_nextc(); return __tmp; }
+  istreambuf_iterator  operator++(int) {
+    if (!_M_is_initialized)
+      _M_postincr_aux();
+    istreambuf_iterator __tmp = *this;
+    this->_M_nextc();
+    return __tmp;
+  }
 
   bool equal(const istreambuf_iterator& __i) const {
     return this->_M_is_initialized && __i._M_is_initialized
@@ -729,6 +734,7 @@ private:
 
   char_type _M_dereference_aux() const;
   bool _M_equal_aux(const istreambuf_iterator&) const;
+  void _M_postincr_aux();
 
   void _M_nextc() {
     int_type __c = _M_buf->snextc();
@@ -768,6 +774,12 @@ bool istreambuf_iterator<_CharT, _Traits>
     __i._M_getc();
 
   return this->_M_eof == __i._M_eof;
+}
+
+template<class _CharT, class _Traits>
+void istreambuf_iterator<_CharT, _Traits>::_M_postincr_aux()
+{
+  this->_M_getc();
 }
 
 template<class _CharT, class _Traits>

@@ -54,10 +54,10 @@ inline void construct(_T1* __p) {
 }
 
 template <class _ForwardIterator>
-inline void
+void
 __destroy_aux(_ForwardIterator __first, _ForwardIterator __last, __false_type)
 {
-  for ( ; __first < __last; ++__first)
+  for ( ; __first != __last; ++__first)
     destroy(&*__first);
 }
 

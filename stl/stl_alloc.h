@@ -45,7 +45,7 @@
 #    define __THROW_BAD_ALLOC fprintf(stderr, "out of memory\n"); exit(1)
 #  else /* Standard conforming out-of-memory handling */
 #    include <new>
-#    define __THROW_BAD_ALLOC throw bad_alloc()
+#    define __THROW_BAD_ALLOC throw std::bad_alloc()
 #  endif
 #endif
 
@@ -552,13 +552,6 @@ __default_alloc_template<__threads, __inst> ::_S_free_list[
 // The 16 zeros are necessary to make version 4.1 of the SunPro
 // compiler happy.  Otherwise it appears to allocate too little
 // space for the array.
-
-# ifdef __STL_WIN32THREADS
-  // Create one to get critical section initialized.
-  // We do this onece per file, but only the first constructor
-  // does anything.
-  static alloc __node_allocator_dummy_instance;
-# endif
 
 #endif /* ! __USE_MALLOC */
 

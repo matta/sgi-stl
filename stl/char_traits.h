@@ -17,9 +17,9 @@
 #include <string.h>
 #include <wchar.h>
 
-#ifdef __STL_USE_NEW_IOSTREAMS
+#if defined(__STL_USE_NEW_IOSTREAMS) && !defined(__SGI_STL_IOSFWD)
 #include <iosfwd>
-#endif /* __STL_USE_NEW_IOSTREAMS */
+#endif /* use new iostreams */
 
 __STL_BEGIN_NAMESPACE
 

@@ -188,7 +188,7 @@ struct _STL_mutex_lock
           __ts.tv_nsec = 1 << __log_nsec;
           nanosleep(&__ts, 0);
 #     elif defined(__STL_WIN32THREADS)
-	  if (__log_nsecs <= 20) {
+	  if (__log_nsec <= 20) {
 	      Sleep(0);
 	  } else {
 	      Sleep(1 << (__log_nsec - 20));
@@ -262,11 +262,11 @@ struct _STL_mutex_lock
 
 #elif defined(__STL_PTHREADS)
   pthread_mutex_t _M_lock;
-  _M_initialize() { pthread_mutex_init(&_M_lock, NULL); }
+  void _M_initialize() { pthread_mutex_init(&_M_lock, NULL); }
   void _M_acquire_lock() { pthread_mutex_lock(&_M_lock); }
   void _M_release_lock() { pthread_mutex_unlock(&_M_lock); }
 #else /* No threads */
-  _M_initialize() {}
+  void _M_initialize() {}
   void _M_acquire_lock() {}
   void _M_release_lock() {}
 #endif

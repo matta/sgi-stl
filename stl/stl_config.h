@@ -67,7 +67,8 @@
 // * __STL_NO_EXCEPTION_HEADER: defined if the compiler does not have a
 //   standard-conforming header <exception>.
 // * __STL_NO_BAD_ALLOC: defined if the compiler does not have a <new>
-//   header, or if <new> does not contain a bad_alloc class
+//   header, or if <new> does not contain a bad_alloc class.  If a bad_alloc
+//   class exists, it is assumed to be in namespace std.
 // * __STL_SGI_THREADS: defined if this is being compiled for an SGI IRIX
 //   system in multithreaded mode, using native SGI threads instead of 
 //   pthreads.
@@ -162,7 +163,8 @@
 #   if (_COMPILER_VERSION < 721)
 #     define __STL_NO_EXCEPTION_HEADER
 #   endif
-#   if _COMPILER_VERSION < 730 || !defined(_STANDARD_C_PLUS_PLUS)
+#   if _COMPILER_VERSION < 730 || !defined(_STANDARD_C_PLUS_PLUS) || \
+      !defined(_NAMESPACES)
 #     define __STL_NO_BAD_ALLOC
 #   endif
 #   if !defined(_NOTHREADS) && !defined(__STL_PTHREADS)
@@ -173,6 +175,12 @@
 #   endif
 #   if _COMPILER_VERSION >= 730 && defined(_STANDARD_C_PLUS_PLUS)
 #     define __STL_USE_NEW_IOSTREAMS
+#   endif
+#   if _COMPILER_VERSION >= 730 && defined(_STANDARD_C_PLUS_PLUS)
+#     define __STL_CAN_THROW_RANGE_ERRORS
+#   endif
+#   if _COMPILER_VERSION >= 730 && defined(_STANDARD_C_PLUS_PLUS)
+#     define __SGI_STL_USE_AUTO_PTR_CONVERSIONS
 #   endif
 # endif
 
@@ -189,6 +197,7 @@
 #     define __STL_FUNCTION_TMPL_PARTIAL_ORDER
 #     define __STL_EXPLICIT_FUNCTION_TMPL_ARGS
 #     define __STL_MEMBER_TEMPLATES
+#     define __STL_CAN_THROW_RANGE_ERRORS
       //    g++ 2.8.1 supports member template functions, but not member
       //    template nested classes.
 #     if __GNUC_MINOR__ >= 9
@@ -224,6 +233,7 @@
 #   define __STL_CLASS_PARTIAL_SPECIALIZATION
 #   define __STL_USE_EXCEPTIONS
 #   define __STL_HAS_NAMESPACES
+#   define __STL_CAN_THROW_RANGE_ERRORS
 # endif
 
 # if defined(_MSC_VER)
@@ -250,9 +260,14 @@
 #     define __STL_PARTIAL_SPECIALIZATION_SYNTAX
 #     define __STL_HAS_NAMESPACES
 #     define __STL_NO_NAMESPACES
+#     define __STL_CAN_THROW_RANGE_ERRORS
+#   endif
+#   if _MSC_VER < 1100
+#     define __STL_NO_EXCEPTION_HEADER
+#     define __STL_NO_BAD_ALLOC
 #   endif
     // Because of a Microsoft front end bug, we must not provide a
-    // namespace qualifier when declaring a front end function.
+    // namespace qualifier when declaring a friend function.
 #   define __STD_QUALIFIER
 # endif
 
@@ -402,7 +417,7 @@
 # define __stl_assert(expr)
 #endif
 
-#if defined(__STL_WIN32_THREADS) || defined(STL_SGI_THREADS) \
+#if defined(__STL_WIN32THREADS) || defined(STL_SGI_THREADS) \
     || defined(__STL_PTHREADS)
 #   define __STL_THREADS
 #   define __STL_VOLATILE volatile

@@ -2212,7 +2212,7 @@ class rope : public _Rope_base<_CharT,_Alloc> {
         static const size_type npos;
 
         size_type find(_CharT __c, size_type __pos = 0) const;
-        size_type find(_CharT* __s, size_type __pos = 0) const {
+        size_type find(const _CharT* __s, size_type __pos = 0) const {
             size_type __result_pos;
             const_iterator __result = search(const_begin() + __pos, const_end(),
                                            __s, __s + _S_char_ptr_len(__s));

@@ -19,11 +19,15 @@
 #include <ctype.h>        
 #include <functional>
 #include <stdexcept>      
-#include <char_traits.h>  // This header name is an extension.
 #include <stl_iterator_base.h>
 #include <memory>
 #include <algorithm>
 
+#ifdef __STL_USE_NEW_IOSTREAMS
+#include <iosfwd>
+#else /* __STL_USE_NEW_IOSTREAMS */
+#include <char_traits.h>
+#endif /* __STL_USE_NEW_IOSTREAMS */
 
 // Standard C++ string class.  This class has performance
 // characteristics very much like vector<>, meaning, for example, that
@@ -2011,13 +2015,11 @@ inline void swap(basic_string<_CharT,_Traits,_Alloc>& __x,
 
 // I/O.  
 
+#ifndef __STL_USE_NEW_IOSTREAMS 
 __STL_END_NAMESPACE
-#ifdef __STL_USE_NEW_IOSTREAMS 
-#include <iosfwd>
-#else /* __STL_USE_NEW_IOSTREAMS */
 #include <iostream.h>
-#endif /* __STL_USE_NEW_IOSTREAMS */
 __STL_BEGIN_NAMESPACE
+#endif /* __STL_USE_NEW_IOSTREAMS */
 
 #ifdef __STL_USE_NEW_IOSTREAMS
 
@@ -2130,6 +2132,7 @@ getline(istream& __is,
   typename basic_istream<_CharT, _Traits>::sentry __sentry(__is, true);
   if (__sentry) {
     basic_streambuf<_CharT, _Traits>* __buf = __is.rdbuf();
+    __s.clear();
 
     int __c1;
     while (__nread < __s.max_size()) {

@@ -27,6 +27,7 @@
 #ifndef __SGI_STL_VECTOR_H
 #define __SGI_STL_VECTOR_H
 
+#include <stl_range_errors.h>
 #include <algobase.h>
 #include <alloc.h>
 #include <stl_vector.h>

@@ -892,7 +892,7 @@ bool rope<_CharT, _Alloc>::_S_apply_to_pieces(
 		_CharT* __buffer =
 		  (_CharT*)alloc::allocate(__len * sizeof(_CharT));
 		__STL_TRY {
-		  (*(__f->_M_fn))(__begin, __end, __buffer);
+		  (*(__f->_M_fn))(__begin, __len, __buffer);
 		  __result = __c(__buffer, __len);
                   alloc::deallocate(__buffer, __len * sizeof(_CharT));
                 }

@@ -218,6 +218,18 @@ public:
   reference operator[](size_type __n) { return *(begin() + __n); }
   const_reference operator[](size_type __n) const { return *(begin() + __n); }
 
+#ifdef __STL_THROW_RANGE_ERRORS
+  void _M_range_check(size_type __n) const {
+    if (__n >= this->size())
+      __stl_throw_range_error("vector");
+  }
+
+  reference at(size_type __n)
+    { _M_range_check(__n); return (*this)[__n]; }
+  const_reference at(size_type __n) const
+    { _M_range_check(__n); return (*this)[__n]; }
+#endif /* __STL_THROW_RANGE_ERRORS */
+
   explicit vector(const allocator_type& __a = allocator_type())
     : _Base(__a) {}
 
@@ -283,7 +295,8 @@ public:
   // The range version is a member template, so we dispatch on whether
   // or not the type is an integer.
 
-  void assign(size_type __n, const _Tp& __val);
+  void assign(size_type __n, const _Tp& __val) { _M_fill_assign(__n, __val); }
+  void _M_fill_assign(size_type __n, const _Tp& __val);
 
 #ifdef __STL_MEMBER_TEMPLATES
   
@@ -295,7 +308,7 @@ public:
 
   template <class _Integer>
   void _M_assign_dispatch(_Integer __n, _Integer __val, __true_type)
-    { assign((size_type) __n, (_Tp) __val); }
+    { _M_fill_assign((size_type) __n, (_Tp) __val); }
 
   template <class _InputIter>
   void _M_assign_dispatch(_InputIter __first, _InputIter __last, __false_type)
@@ -368,9 +381,8 @@ public:
 
   template <class _Integer>
   void _M_insert_dispatch(iterator __pos, _Integer __n, _Integer __val,
-                          __true_type) {
-    insert(__pos, (size_type) __n, (_Tp) __val);
-  }
+                          __true_type)
+    { _M_fill_insert(__pos, (size_type) __n, (_Tp) __val); }
 
   template <class _InputIterator>
   void _M_insert_dispatch(iterator __pos,
@@ -383,7 +395,10 @@ public:
               const_iterator __first, const_iterator __last);
 #endif /* __STL_MEMBER_TEMPLATES */
 
-  void insert (iterator __pos, size_type __n, const _Tp& __x);
+  void insert (iterator __pos, size_type __n, const _Tp& __x)
+    { _M_fill_insert(__pos, __n, __x); }
+
+  void _M_fill_insert (iterator __pos, size_type __n, const _Tp& __x);
 
   void pop_back() {
     --_M_finish;
@@ -551,7 +566,8 @@ vector<_Tp,_Alloc>::operator=(const vector<_Tp, _Alloc>& __x)
 }
 
 template <class _Tp, class _Alloc>
-void vector<_Tp, _Alloc>::assign(size_t __n, const value_type& __val) {
+void vector<_Tp, _Alloc>::_M_fill_assign(size_t __n, const value_type& __val) 
+{
   if (__n > capacity()) {
     vector<_Tp, _Alloc> __tmp(__n, __val, get_allocator());
     __tmp.swap(*this);
@@ -671,8 +687,8 @@ vector<_Tp, _Alloc>::_M_insert_aux(iterator __position)
 }
 
 template <class _Tp, class _Alloc>
-void vector<_Tp, _Alloc>::insert(iterator __position, size_type __n, 
-                                 const _Tp& __x)
+void vector<_Tp, _Alloc>::_M_fill_insert(iterator __position, size_type __n, 
+                                         const _Tp& __x)
 {
   if (__n != 0) {
     if (size_type(_M_end_of_storage - _M_finish) >= __n) {

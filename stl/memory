@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997
+ * Copyright (c) 1997-1999
  * Silicon Graphics Computer Systems, Inc.
  *
  * Permission to use, copy, modify, distribute and sell this software
@@ -24,6 +24,16 @@
 
 
 __STL_BEGIN_NAMESPACE
+
+#if defined(__SGI_STL_USE_AUTO_PTR_CONVERSIONS) && \
+    defined(__STL_MEMBER_TEMPLATES)
+
+template<class _Tp1> struct auto_ptr_ref {
+  _Tp1* _M_ptr;
+  auto_ptr_ref(_Tp1* __p) : _M_ptr(__p) {}
+};
+
+#endif
 
 template <class _Tp> class auto_ptr {
 private:
@@ -76,8 +86,10 @@ public:
     return __tmp;
   }
   void reset(_Tp* __p = 0) __STL_NOTHROW {
-    delete _M_ptr;
-    _M_ptr = __p;
+    if (__p != _M_ptr) {
+      delete _M_ptr;
+      _M_ptr = __p;
+    }
   }
 
   // According to the C++ standard, these conversions are required.  Most
@@ -88,19 +100,22 @@ public:
 #if defined(__SGI_STL_USE_AUTO_PTR_CONVERSIONS) && \
     defined(__STL_MEMBER_TEMPLATES)
 
-private:
-  template<class _Tp1> struct auto_ptr_ref {
-    _Tp1* _M_ptr;
-    auto_ptr_ref(_Tp1* __p) : _M_ptr(__p) {}
-  };
-
 public:
   auto_ptr(auto_ptr_ref<_Tp> __ref) __STL_NOTHROW
     : _M_ptr(__ref._M_ptr) {}
+
+  auto_ptr& operator=(auto_ptr_ref<_Tp> __ref) __STL_NOTHROW {
+    if (__ref._M_ptr != this->get()) {
+      delete _M_ptr;
+      _M_ptr = __ref._M_ptr;
+    }
+    return *this;
+  }
+
   template <class _Tp1> operator auto_ptr_ref<_Tp1>() __STL_NOTHROW 
-    { return auto_ptr_ref<_Tp>(this->release()); }
+    { return auto_ptr_ref<_Tp1>(this->release()); }
   template <class _Tp1> operator auto_ptr<_Tp1>() __STL_NOTHROW
-    { return auto_ptr<_Tp1>(this->release()) }
+    { return auto_ptr<_Tp1>(this->release()); }
 
 #endif /* auto ptr conversions && member templates */
 };
