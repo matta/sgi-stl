@@ -780,6 +780,39 @@ operator<(const _Rb_tree<_Key,_Value,_KeyOfValue,_Compare,_Alloc>& __x,
 
 template <class _Key, class _Value, class _KeyOfValue, 
           class _Compare, class _Alloc>
+inline bool 
+operator!=(const _Rb_tree<_Key,_Value,_KeyOfValue,_Compare,_Alloc>& __x, 
+           const _Rb_tree<_Key,_Value,_KeyOfValue,_Compare,_Alloc>& __y) {
+  return !(__x == __y);
+}
+
+template <class _Key, class _Value, class _KeyOfValue, 
+          class _Compare, class _Alloc>
+inline bool 
+operator>(const _Rb_tree<_Key,_Value,_KeyOfValue,_Compare,_Alloc>& __x, 
+          const _Rb_tree<_Key,_Value,_KeyOfValue,_Compare,_Alloc>& __y) {
+  return __y < __x;
+}
+
+template <class _Key, class _Value, class _KeyOfValue, 
+          class _Compare, class _Alloc>
+inline bool 
+operator<=(const _Rb_tree<_Key,_Value,_KeyOfValue,_Compare,_Alloc>& __x, 
+           const _Rb_tree<_Key,_Value,_KeyOfValue,_Compare,_Alloc>& __y) {
+  return !(__y < __x);
+}
+
+template <class _Key, class _Value, class _KeyOfValue, 
+          class _Compare, class _Alloc>
+inline bool 
+operator>=(const _Rb_tree<_Key,_Value,_KeyOfValue,_Compare,_Alloc>& __x, 
+           const _Rb_tree<_Key,_Value,_KeyOfValue,_Compare,_Alloc>& __y) {
+  return !(__x < __y);
+}
+
+
+template <class _Key, class _Value, class _KeyOfValue, 
+          class _Compare, class _Alloc>
 inline void 
 swap(_Rb_tree<_Key,_Value,_KeyOfValue,_Compare,_Alloc>& __x, 
      _Rb_tree<_Key,_Value,_KeyOfValue,_Compare,_Alloc>& __y)

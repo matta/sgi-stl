@@ -58,20 +58,29 @@
 //   function template argument deduction for non-type template parameters.
 // * __SGI_STL_NO_ARROW_OPERATOR: defined if the compiler is unable
 //   to support the -> operator for iterators.
+// * __STL_DEFAULT_CONSTRUCTOR_BUG: defined if T() does not work properly
+//   when T is a builtin type.
 // * __STL_USE_EXCEPTIONS: defined if the compiler (in the current compilation
 //   mode) supports exceptions.
 // * __STL_USE_NAMESPACES: defined if the compiler has the necessary
 //   support for namespaces.
 // * __STL_NO_EXCEPTION_HEADER: defined if the compiler does not have a
 //   standard-conforming header <exception>.
+// * __STL_NO_BAD_ALLOC: defined if the compiler does not have a <new>
+//   header, or if <new> does not contain a bad_alloc class
 // * __STL_SGI_THREADS: defined if this is being compiled for an SGI IRIX
 //   system in multithreaded mode, using native SGI threads instead of 
 //   pthreads.
 // * __STL_WIN32THREADS: defined if this is being compiled on a WIN32
 //   compiler in multithreaded mode.
+// * __STL_PTHREADS: defined if we should use portable pthreads
+//   synchronization.
 // * __STL_LONG_LONG if the compiler has long long and unsigned long long
 //   types.  (They're not in the C++ standard, but they are expected to be 
 //   included in the forthcoming C9X standard.)
+// * __STL_THREADS is defined if thread safety is needed.
+// * __STL_VOLATILE is deifined to be "volatile" if threads are being
+//   used, and the empty string otherwise.
 
 
 // User-settable macros that control compilation:
@@ -81,11 +90,18 @@
 //   for standard-conforming allocators.
 // * __STL_NO_NAMESPACES: if defined, don't put the library in namespace
 //   std, even if the compiler supports namespaces.
+// * __STL_NO_RELOPS_NAMESPACE: if defined, don't put the relational
+//   operator templates (>, <=. >=, !=) in namespace std::rel_ops, even
+//   if the compiler supports namespaces and partial ordering of
+//   function templates.
 // * __STL_ASSERTIONS: if defined, then enable runtime checking through the
 //   __stl_assert macro.
 // * _PTHREADS: if defined, use Posix threads for multithreading support.
 // * _NOTHREADS: if defined, don't use any multithreading support.  
-
+// * __STL_USE_NEW_IOSTREAMS: if defined, then the STL will use new,
+//   standard-conforming iostreams (e.g. the <iosfwd> header).  If not
+//   defined, the STL will use old cfront-style iostreams (e.g. the
+//   <iostream.h> header).
 
 // Other macros defined by this file:
 
@@ -97,8 +113,12 @@
 // * __stl_assert, either as a test or as a null macro, depending on
 //   whether or not __STL_ASSERTIONS is defined.
 
+# if defined(_PTHREADS) && !defined(_NOTHREADS)
+#     define __STL_PTHREADS
+# endif
 
 # if defined(__sgi) && !defined(__GNUC__)
+#   include <standards.h>
 #   if !defined(_BOOL)
 #     define __STL_NO_BOOL
 #   endif
@@ -111,6 +131,9 @@
 #   ifdef _PARTIAL_SPECIALIZATION_OF_CLASS_TEMPLATES
 #     define __STL_CLASS_PARTIAL_SPECIALIZATION
 #   endif
+#   if (_COMPILER_VERSION >= 730) && defined(_MIPS_SIM) && _MIPS_SIM != _ABI32
+#     define __STL_FUNCTION_TMPL_PARTIAL_ORDER
+#   endif
 #   ifdef _MEMBER_TEMPLATES
 #     define __STL_MEMBER_TEMPLATES
 #     define __STL_MEMBER_TEMPLATE_CLASSES
@@ -118,8 +141,14 @@
 #   if defined(_MEMBER_TEMPLATE_KEYWORD)
 #     define __STL_MEMBER_TEMPLATE_KEYWORD
 #   endif
-#   if (_COMPILER_VERSION >= 730) && defined(_MIPS_SIM) && _MIPS_SIM != _ABIO32
+#   if defined(_STANDARD_C_PLUS_PLUS)
+#     define __STL_EXPLICIT_FUNCTION_TMPL_ARGS
+#   endif
+#   if (_COMPILER_VERSION >= 730) && defined(_MIPS_SIM) && _MIPS_SIM != _ABI32
 #     define __STL_MEMBER_TEMPLATE_KEYWORD
+#   endif
+#   if defined(_MIPS_SIM) && _MIPS_SIM != _MIPS_SIM_ABI32
+#     define __STL_DEFAULT_CONSTRUCTOR_BUG
 #   endif
 #   if !defined(_EXPLICIT_IS_KEYWORD)
 #     define __STL_NEED_EXPLICIT
@@ -133,11 +162,17 @@
 #   if (_COMPILER_VERSION < 721)
 #     define __STL_NO_EXCEPTION_HEADER
 #   endif
-#   if !defined(_NOTHREADS) && !defined(_PTHREADS)
+#   if _COMPILER_VERSION < 730 || !defined(_STANDARD_C_PLUS_PLUS)
+#     define __STL_NO_BAD_ALLOC
+#   endif
+#   if !defined(_NOTHREADS) && !defined(__STL_PTHREADS)
 #     define __STL_SGI_THREADS
 #   endif
 #   if defined(_LONGLONG) && defined(_SGIAPI) && _SGIAPI
 #     define __STL_LONG_LONG
+#   endif
+#   if _COMPILER_VERSION >= 730 && defined(_STANDARD_C_PLUS_PLUS)
+#     define __STL_USE_NEW_IOSTREAMS
 #   endif
 # endif
 
@@ -156,9 +191,16 @@
 #     define __STL_MEMBER_TEMPLATES
       //    g++ 2.8.1 supports member template functions, but not member
       //    template nested classes.
+#     if __GNUC_MINOR__ >= 9
+#       define __STL_MEMBER_TEMPLATE_CLASSES
+#     endif
 #   endif
+#   define __STL_DEFAULT_CONSTRUCTOR_BUG
 #   ifdef __EXCEPTIONS
 #     define __STL_USE_EXCEPTIONS
+#   endif
+#   ifdef _REENTRANT
+#     define __STL_PTHREADS
 #   endif
 # endif
 
@@ -167,6 +209,13 @@
 #   define __STL_NEED_TYPENAME
 #   define __STL_NEED_EXPLICIT
 #   define __STL_USE_EXCEPTIONS
+#   ifdef _REENTRANT
+#     define __STL_PTHREADS
+#   endif
+#   define __SGI_STL_NO_ARROW_OPERATOR
+#   define __STL_PARTIAL_SPECIALIZATION_SYNTAX
+#   define __STL_NO_EXCEPTION_HEADER
+#   define __STL_NO_BAD_ALLOC
 # endif
 
 # if defined(__COMO__)
@@ -190,6 +239,7 @@
 #   endif
 #   define __STL_NON_TYPE_TMPL_PARAM_BUG
 #   define __SGI_STL_NO_ARROW_OPERATOR
+#   define __STL_DEFAULT_CONSTRUCTOR_BUG
 #   ifdef _CPPUNWIND
 #     define __STL_USE_EXCEPTIONS
 #   endif
@@ -201,6 +251,9 @@
 #     define __STL_HAS_NAMESPACES
 #     define __STL_NO_NAMESPACES
 #   endif
+    // Because of a Microsoft front end bug, we must not provide a
+    // namespace qualifier when declaring a front end function.
+#   define __STD_QUALIFIER
 # endif
 
 # if defined(__BORLANDC__)
@@ -208,6 +261,7 @@
 #   define __STL_NEED_TYPENAME
 #   define __STL_LIMITED_DEFAULT_TEMPLATES
 #   define __SGI_STL_NO_ARROW_OPERATOR
+#   define __STL_DEFAULT_CONSTRUCTOR_BUG
 #   define __STL_NON_TYPE_TMPL_PARAM_BUG
 #   ifdef _CPPUNWIND
 #     define __STL_USE_EXCEPTIONS
@@ -225,6 +279,12 @@
 
 # ifdef __STL_NEED_TYPENAME
 #   define typename
+# endif
+
+# ifdef __STL_LIMITED_DEFAULT_TEMPLATES
+#   define __STL_DEPENDENT_DEFAULT_TMPL(_Tp)
+# else
+#   define __STL_DEPENDENT_DEFAULT_TMPL(_Tp) = _Tp
 # endif
 
 # ifdef __STL_MEMBER_TEMPLATE_KEYWORD
@@ -266,23 +326,34 @@
 
 # ifndef __STL_DEFAULT_ALLOCATOR
 #   ifdef __STL_USE_STD_ALLOCATORS
-#     define __STL_DEFAULT_ALLOCATOR(T) allocator<T>
+#     define __STL_DEFAULT_ALLOCATOR(T) allocator< T >
 #   else
 #     define __STL_DEFAULT_ALLOCATOR(T) alloc
 #   endif
 # endif
 
 // __STL_NO_NAMESPACES is a hook so that users can disable namespaces
-// without having to edit library headers.
+// without having to edit library headers.  __STL_NO_RELOPS_NAMESPACE is
+// a hook so that users can disable the std::rel_ops namespace, keeping 
+// the relational operator template in namespace std, without having to 
+// edit library headers.
 # if defined(__STL_HAS_NAMESPACES) && !defined(__STL_NO_NAMESPACES)
+#   define __STL_USE_NAMESPACES
 #   define __STD std
 #   define __STL_BEGIN_NAMESPACE namespace std {
 #   define __STL_END_NAMESPACE }
-#   define __STL_USE_NAMESPACE_FOR_RELOPS
-#   define __STL_BEGIN_RELOPS_NAMESPACE namespace std {
-#   define __STL_END_RELOPS_NAMESPACE }
-#   define __STD_RELOPS std
-#   define __STL_USE_NAMESPACES
+#   if defined(__STL_FUNCTION_TMPL_PARTIAL_ORDER) && \
+       !defined(__STL_NO_RELOPS_NAMESPACE)
+#     define __STL_USE_NAMESPACE_FOR_RELOPS
+#     define __STL_BEGIN_RELOPS_NAMESPACE namespace std { namespace rel_ops {
+#     define __STL_END_RELOPS_NAMESPACE } }
+#     define __STD_RELOPS std::rel_ops
+#   else /* Use std::rel_ops namespace */
+#     define __STL_USE_NAMESPACE_FOR_RELOPS
+#     define __STL_BEGIN_RELOPS_NAMESPACE namespace std {
+#     define __STL_END_RELOPS_NAMESPACE }
+#     define __STD_RELOPS std
+#   endif /* Use std::rel_ops namespace */
 # else
 #   define __STD 
 #   define __STL_BEGIN_NAMESPACE 
@@ -292,6 +363,18 @@
 #   define __STL_END_RELOPS_NAMESPACE 
 #   define __STD_RELOPS 
 #   undef  __STL_USE_NAMESPACES
+# endif
+
+// Some versions of the EDG front end sometimes require an explicit
+// namespace spec where they shouldn't.  This macro facilitates that.
+// If the bug becomes irrelevant, then all uses of __STD_QUALIFIER
+// should be removed.  The 7.3 beta SGI compiler has this bug, but the
+// MR version is not expected to have it.
+
+# if defined(__STL_USE_NAMESPACES) && !defined(__STD_QUALIFIER)
+#   define __STD_QUALIFIER std::
+# else
+#   define __STD_QUALIFIER
 # endif
 
 # ifdef __STL_USE_EXCEPTIONS
@@ -317,6 +400,14 @@
 			  __FILE__, __LINE__, # expr); abort(); }
 #else
 # define __stl_assert(expr)
+#endif
+
+#if defined(__STL_WIN32_THREADS) || defined(STL_SGI_THREADS) \
+    || defined(__STL_PTHREADS)
+#   define __STL_THREADS
+#   define __STL_VOLATILE volatile
+#else
+#   define __STL_VOLATILE
 #endif
 
 #endif /* __STL_CONFIG_H */

@@ -31,7 +31,16 @@
 #include <function.h>
 #endif
 #include <stddef.h>
+
+#ifdef __STL_USE_NEW_IOSTREAMS 
+#include <iosfwd>
+#else /* __STL_USE_NEW_IOSTREAMS */
 #include <iostream.h>
+#endif /* __STL_USE_NEW_IOSTREAMS */
+
+#ifndef __SGI_STL_INTERNAL_ITERATOR_BASE_H
+#include <stl_iterator_base.h>
+#endif
 #ifndef __SGI_STL_INTERNAL_ITERATOR_H
 #include <stl_iterator.h>
 #endif

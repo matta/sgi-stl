@@ -38,13 +38,22 @@ __STL_BEGIN_NAMESPACE
 #pragma set woff 1375
 #endif
 
-#ifndef __STL_LIMITED_DEFAULT_TEMPLATES
-template <class _Key, class _Tp, class _Compare = less<_Key>,
+// Forward declaration of operators < and ==, needed for friend declaration.
+
+template <class _Key, class _Tp, 
+          class _Compare __STL_DEPENDENT_DEFAULT_TMPL(less<_Key>),
           class _Alloc = __STL_DEFAULT_ALLOCATOR(_Tp) >
-#else
-template <class _Key, class _Tp, class _Compare,
-          class _Alloc = __STL_DEFAULT_ALLOCATOR(_Tp) >
-#endif
+class multimap;
+
+template <class _Key, class _Tp, class _Compare, class _Alloc>
+inline bool operator==(const multimap<_Key,_Tp,_Compare,_Alloc>& __x, 
+                       const multimap<_Key,_Tp,_Compare,_Alloc>& __y);
+
+template <class _Key, class _Tp, class _Compare, class _Alloc>
+inline bool operator<(const multimap<_Key,_Tp,_Compare,_Alloc>& __x, 
+                      const multimap<_Key,_Tp,_Compare,_Alloc>& __y);
+
+template <class _Key, class _Tp, class _Compare, class _Alloc>
 class multimap {
 public:
 
@@ -59,11 +68,11 @@ public:
   class value_compare : public binary_function<value_type, value_type, bool> {
   friend class multimap<_Key,_Tp,_Compare,_Alloc>;
   protected:
-    _Compare _M_comp;
-    value_compare(_Compare __c) : _M_comp(__c) {}
+    _Compare comp;
+    value_compare(_Compare __c) : comp(__c) {}
   public:
     bool operator()(const value_type& __x, const value_type& __y) const {
-      return _M_comp(__x.first, __y.first);
+      return comp(__x.first, __y.first);
     }
   };
 
@@ -190,10 +199,11 @@ public:
   pair<const_iterator,const_iterator> equal_range(const key_type& __x) const {
     return _M_t.equal_range(__x);
   }
-  friend bool operator== __STL_NULL_TMPL_ARGS (const multimap&,
-                                               const multimap&);
-  friend bool operator< __STL_NULL_TMPL_ARGS (const multimap&,
-                                              const multimap&);
+
+  friend bool __STD_QUALIFIER
+  operator== __STL_NULL_TMPL_ARGS (const multimap&, const multimap&);
+  friend bool __STD_QUALIFIER
+  operator< __STL_NULL_TMPL_ARGS (const multimap&, const multimap&);
 };
 
 template <class _Key, class _Tp, class _Compare, class _Alloc>
@@ -209,6 +219,30 @@ inline bool operator<(const multimap<_Key,_Tp,_Compare,_Alloc>& __x,
 }
 
 #ifdef __STL_FUNCTION_TMPL_PARTIAL_ORDER
+
+template <class _Key, class _Tp, class _Compare, class _Alloc>
+inline bool operator!=(const multimap<_Key,_Tp,_Compare,_Alloc>& __x, 
+                       const multimap<_Key,_Tp,_Compare,_Alloc>& __y) {
+  return !(__x == __y);
+}
+
+template <class _Key, class _Tp, class _Compare, class _Alloc>
+inline bool operator>(const multimap<_Key,_Tp,_Compare,_Alloc>& __x, 
+                      const multimap<_Key,_Tp,_Compare,_Alloc>& __y) {
+  return __y < __x;
+}
+
+template <class _Key, class _Tp, class _Compare, class _Alloc>
+inline bool operator<=(const multimap<_Key,_Tp,_Compare,_Alloc>& __x, 
+                       const multimap<_Key,_Tp,_Compare,_Alloc>& __y) {
+  return !(__y < __x);
+}
+
+template <class _Key, class _Tp, class _Compare, class _Alloc>
+inline bool operator>=(const multimap<_Key,_Tp,_Compare,_Alloc>& __x, 
+                       const multimap<_Key,_Tp,_Compare,_Alloc>& __y) {
+  return !(__x < __y);
+}
 
 template <class _Key, class _Tp, class _Compare, class _Alloc>
 inline void swap(multimap<_Key,_Tp,_Compare,_Alloc>& __x, 

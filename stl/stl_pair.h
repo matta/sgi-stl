@@ -62,6 +62,30 @@ inline bool operator<(const pair<_T1, _T2>& __x, const pair<_T1, _T2>& __y)
          (!(__y.first < __x.first) && __x.second < __y.second); 
 }
 
+#ifdef __STL_FUNCTION_TMPL_PARTIAL_ORDER
+
+template <class _T1, class _T2>
+inline bool operator!=(const pair<_T1, _T2>& __x, const pair<_T1, _T2>& __y) {
+  return !(__x == __y);
+}
+
+template <class _T1, class _T2>
+inline bool operator>(const pair<_T1, _T2>& __x, const pair<_T1, _T2>& __y) {
+  return __y < __x;
+}
+
+template <class _T1, class _T2>
+inline bool operator<=(const pair<_T1, _T2>& __x, const pair<_T1, _T2>& __y) {
+  return !(__y < __x);
+}
+
+template <class _T1, class _T2>
+inline bool operator>=(const pair<_T1, _T2>& __x, const pair<_T1, _T2>& __y) {
+  return !(__x < __y);
+}
+
+#endif /* __STL_FUNCTION_TMPL_PARTIAL_ORDER */
+
 template <class _T1, class _T2>
 inline pair<_T1, _T2> make_pair(const _T1& __x, const _T2& __y)
 {

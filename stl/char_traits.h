@@ -17,6 +17,10 @@
 #include <string.h>
 #include <wchar.h>
 
+#ifdef __STL_USE_NEW_IOSTREAMS
+#include <iosfwd>
+#endif /* __STL_USE_NEW_IOSTREAMS */
+
 __STL_BEGIN_NAMESPACE
 
 // Class __char_traits_base.
@@ -24,9 +28,11 @@ __STL_BEGIN_NAMESPACE
 template <class _CharT, class _IntT> struct __char_traits_base {
   typedef _CharT char_type;
   typedef _IntT int_type;
-  // typedef streamoff off_type;
-  // typedef streampos pos_type;
-  // typedef mbstate_t state_type;
+#ifdef __STL_USE_NEW_IOSTREAMS
+  typedef streamoff off_type;
+  typedef streampos pos_type;
+  typedef mbstate_t state_type;
+#endif /* __STL_USE_NEW_IOSTREAMS */
 
   static void assign(char_type& __c1, const char_type& __c2) { __c1 = __c2; }
   static bool eq(const _CharT& __c1, const _CharT& __c2) 
@@ -42,9 +48,9 @@ template <class _CharT, class _IntT> struct __char_traits_base {
   }
 
   static size_t length(const _CharT* __s) {
-    const _CharT __null = _CharT();
+    const _CharT __nullchar = _CharT();
     size_t __i;
-    for (__i = 0; !eq(__s[__i], __null); ++__i)
+    for (__i = 0; !eq(__s[__i], __nullchar); ++__i)
       {}
     return __i;
   }
@@ -74,7 +80,7 @@ template <class _CharT, class _IntT> struct __char_traits_base {
   }
 
   static int_type not_eof(const int_type& __c) {
-    return !eq(__c, eof()) ? __c : 0;
+    return !eq_int_type(__c, eof()) ? __c : 0;
   }
 
   static char_type to_char_type(const int_type& __c) {
@@ -105,7 +111,7 @@ template <class _CharT> struct char_traits
 
 // Specialization for char.
 
-template<> struct char_traits<char> 
+__STL_TEMPLATE_NULL struct char_traits<char> 
   : public __char_traits_base<char, int>
 {
   static int compare(const char* __s1, const char* __s2, size_t __n) 
@@ -121,9 +127,44 @@ template<> struct char_traits<char>
 
 // Specialization for wchar_t.
 
-template<> struct char_traits<wchar_t>
+__STL_TEMPLATE_NULL struct char_traits<wchar_t>
   : public __char_traits_base<wchar_t, wint_t>
 {};
+
+// Helper classes that turn char_traits into function objects.
+
+template <class _Traits>
+struct _Eq_traits
+  : public binary_function<typename _Traits::char_type,
+                           typename _Traits::char_type,
+                           bool>
+{
+  bool operator()(const typename _Traits::char_type& __x,
+                  const typename _Traits::char_type& __y) const
+    { return _Traits::eq(__x, __y); }
+};
+
+template <class _Traits>
+struct _Eq_int_traits
+  : public binary_function<typename _Traits::char_type,
+                           typename _Traits::int_type,
+                           bool>
+{
+  bool operator()(const typename _Traits::char_type& __x,
+                  const typename _Traits::int_type& __y) const
+    { return _Traits::eq_int_type(_Traits::to_int_type(__x), __y); }
+};
+
+template <class _Traits>
+struct _Lt_traits
+  : public binary_function<typename _Traits::char_type,
+                           typename _Traits::char_type,
+                           bool>
+{
+  bool operator()(const typename _Traits::char_type& __x,
+                  const typename _Traits::char_type& __y) const
+    { return _Traits::lt(__x, __y); }
+};
 
 __STL_END_NAMESPACE
 

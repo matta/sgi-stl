@@ -202,10 +202,10 @@ public:
 
 template <class _Operation, class _Tp>
 inline binder1st<_Operation> 
-bind1st(const _Operation& __opr, const _Tp& __x) 
+bind1st(const _Operation& __fn, const _Tp& __x) 
 {
   typedef typename _Operation::first_argument_type _Arg1_type;
-  return binder1st<_Operation>(__opr, _Arg1_type(__x));
+  return binder1st<_Operation>(__fn, _Arg1_type(__x));
 }
 
 template <class _Operation> 
@@ -227,10 +227,10 @@ public:
 
 template <class _Operation, class _Tp>
 inline binder2nd<_Operation> 
-bind2nd(const _Operation& __opr, const _Tp& __x) 
+bind2nd(const _Operation& __fn, const _Tp& __x) 
 {
   typedef typename _Operation::second_argument_type _Arg2_type;
-  return binder2nd<_Operation>(__opr, _Arg2_type(__x));
+  return binder2nd<_Operation>(__fn, _Arg2_type(__x));
 }
 
 // unary_compose and binary_compose (extensions, not part of the standard).
@@ -241,22 +241,22 @@ class unary_compose
                           typename _Operation1::result_type> 
 {
 protected:
-  _Operation1 __op1;
-  _Operation2 __op2;
+  _Operation1 _M_fn1;
+  _Operation2 _M_fn2;
 public:
   unary_compose(const _Operation1& __x, const _Operation2& __y) 
-    : __op1(__x), __op2(__y) {}
+    : _M_fn1(__x), _M_fn2(__y) {}
   typename _Operation1::result_type
   operator()(const typename _Operation2::argument_type& __x) const {
-    return __op1(__op2(__x));
+    return _M_fn1(_M_fn2(__x));
   }
 };
 
 template <class _Operation1, class _Operation2>
 inline unary_compose<_Operation1,_Operation2> 
-compose1(const _Operation1& __op1, const _Operation2& __op2)
+compose1(const _Operation1& __fn1, const _Operation2& __fn2)
 {
-  return unary_compose<_Operation1,_Operation2>(__op1, __op2);
+  return unary_compose<_Operation1,_Operation2>(__fn1, __fn2);
 }
 
 template <class _Operation1, class _Operation2, class _Operation3>
@@ -264,26 +264,26 @@ class binary_compose
   : public unary_function<typename _Operation2::argument_type,
                           typename _Operation1::result_type> {
 protected:
-  _Operation1 _M_op1;
-  _Operation2 _M_op2;
-  _Operation3 _M_op3;
+  _Operation1 _M_fn1;
+  _Operation2 _M_fn2;
+  _Operation3 _M_fn3;
 public:
   binary_compose(const _Operation1& __x, const _Operation2& __y, 
                  const _Operation3& __z) 
-    : _M_op1(__x), _M_op2(__y), _M_op3(__z) { }
+    : _M_fn1(__x), _M_fn2(__y), _M_fn3(__z) { }
   typename _Operation1::result_type
   operator()(const typename _Operation2::argument_type& __x) const {
-    return _M_op1(_M_op2(__x), _M_op3(__x));
+    return _M_fn1(_M_fn2(__x), _M_fn3(__x));
   }
 };
 
 template <class _Operation1, class _Operation2, class _Operation3>
 inline binary_compose<_Operation1, _Operation2, _Operation3> 
-compose2(const _Operation1& __op1, const _Operation2& __op2, 
-         const _Operation3& __op3)
+compose2(const _Operation1& __fn1, const _Operation2& __fn2, 
+         const _Operation3& __fn3)
 {
   return binary_compose<_Operation1,_Operation2,_Operation3>
-    (__op1, __op2, __op3);
+    (__fn1, __fn2, __fn3);
 }
 
 template <class _Arg, class _Result>
@@ -369,37 +369,62 @@ struct project2nd : public _Project2nd<_Arg1, _Arg2> {};
 // constant_void_fun, constant_unary_fun, and constant_binary_fun are
 // extensions: they are not part of the standard.  (The same, of course,
 // is true of the helper functions constant0, constant1, and constant2.)
+
 template <class _Result>
-struct constant_void_fun
-{
+struct _Constant_void_fun {
   typedef _Result result_type;
-  result_type __val;
-  constant_void_fun(const result_type& __v) : __val(__v) {}
-  const result_type& operator()() const { return __val; }
+  result_type _M_val;
+
+  _Constant_void_fun(const result_type& __v) : _M_val(__v) {}
+  const result_type& operator()() const { return _M_val; }
 };  
 
-#ifndef __STL_LIMITED_DEFAULT_TEMPLATES
-template <class _Result, class _Argument = _Result>
-#else
 template <class _Result, class _Argument>
-#endif
-struct constant_unary_fun : public unary_function<_Argument, _Result> {
-  _Result _M_val;
-  constant_unary_fun(const _Result& __v) : _M_val(__v) {}
-  const _Result& operator()(const _Argument&) const { return _M_val; }
+struct _Constant_unary_fun {
+  typedef _Argument argument_type;
+  typedef  _Result  result_type;
+  result_type _M_val;
+
+  _Constant_unary_fun(const result_type& __v) : _M_val(__v) {}
+  const result_type& operator()(const _Argument&) const { return _M_val; }
 };
 
-#ifndef __STL_LIMITED_DEFAULT_TEMPLATES
-template <class _Result, class _Arg1 = _Result, class _Arg2 = _Arg1>
-#else
 template <class _Result, class _Arg1, class _Arg2>
-#endif
-struct constant_binary_fun : public binary_function<_Arg1, _Arg2, _Result> {
+struct _Constant_binary_fun {
+  typedef  _Arg1   first_argument_type;
+  typedef  _Arg2   second_argument_type;
+  typedef  _Result result_type;
   _Result _M_val;
-  constant_binary_fun(const _Result& __v) : _M_val(__v) {}
-  const _Result& operator()(const _Arg1&, const _Arg2&) const {
+
+  _Constant_binary_fun(const _Result& __v) : _M_val(__v) {}
+  const result_type& operator()(const _Arg1&, const _Arg2&) const {
     return _M_val;
   }
+};
+
+template <class _Result>
+struct constant_void_fun : public _Constant_void_fun<_Result> {
+  constant_void_fun(const _Result& __v) : _Constant_void_fun<_Result>(_v) {}
+};  
+
+
+template <class _Result,
+          class _Argument __STL_DEPENDENT_DEFAULT_TMPL(_Result)>
+struct constant_unary_fun : public _Constant_unary_fun<_Result, _Argument>
+{
+  constant_unary_fun(const _Result& __v)
+    : _Constant_unary_fun<_Result, _Argument>(__v) {}
+};
+
+
+template <class _Result,
+          class _Arg1 __STL_DEPENDENT_DEFAULT_TMPL(_Result),
+          class _Arg2 __STL_DEPENDENT_DEFAULT_TMPL(_Arg1)>
+struct constant_binary_fun
+  : public _Constant_binary_fun<_Result, _Arg1, _Arg2>
+{
+  constant_binary_fun(const _Result& __v)
+    : _Constant_binary_fun<_Result, _Arg1, _Arg2>(__v) {}
 };
 
 template <class _Result>

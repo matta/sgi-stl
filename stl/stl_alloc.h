@@ -38,12 +38,15 @@
 // The allocation primitives are intended to allocate individual objects,
 // not larger arenas as with the original STL allocators.
 
-#if 0
-#   include <new>
-#   define __THROW_BAD_ALLOC throw bad_alloc()
-#elif !defined(__THROW_BAD_ALLOC)
-#   include <iostream.h>
-#   define __THROW_BAD_ALLOC cerr << "out of memory" << endl; exit(1)
+#ifndef __THROW_BAD_ALLOC
+#  if defined(__STL_NO_BAD_ALLOC) || !defined(__STL_USE_EXCEPTIONS)
+#    include <stdio.h>
+#    include <stdlib.h>
+#    define __THROW_BAD_ALLOC fprintf(stderr, "out of memory\n"); exit(1)
+#  else /* Standard conforming out-of-memory handling */
+#    include <new>
+#    define __THROW_BAD_ALLOC throw bad_alloc()
+#  endif
 #endif
 
 #ifdef __STL_WIN32THREADS
@@ -58,38 +61,14 @@
 #  define __RESTRICT
 #endif
 
-#if !defined(_PTHREADS) && !defined(_NOTHREADS) \
- && !defined(__STL_SGI_THREADS) && !defined(__STL_WIN32THREADS)
-#   define _NOTHREADS
-#endif
-
-# ifdef _PTHREADS
-    // POSIX Threads
-    // This is dubious, since this is likely to be a high contention
-    // lock.   Performance may not be adequate.
-#   include <pthread.h>
-#   define __NODE_ALLOCATOR_LOCK \
-        if (threads) pthread_mutex_lock(&_S_node_allocator_lock)
-#   define __NODE_ALLOCATOR_UNLOCK \
-        if (threads) pthread_mutex_unlock(&_S_node_allocator_lock)
-#   define __NODE_ALLOCATOR_THREADS true
-#   define __VOLATILE volatile  // Needed at -O3 on SGI
-# endif
-# ifdef __STL_WIN32THREADS
-    // The lock needs to be initialized by constructing an allocator
-    // objects of the right type.  We do that here explicitly for alloc.
-#   define __NODE_ALLOCATOR_LOCK \
-        EnterCriticalSection(&_S_node_allocator_lock)
-#   define __NODE_ALLOCATOR_UNLOCK \
-        LeaveCriticalSection(&_S_node_allocator_lock)
-#   define __NODE_ALLOCATOR_THREADS true
-#   define __VOLATILE volatile  // may not be needed
-# endif /* WIN32THREADS */
+#ifdef __STL_THREADS
+# include <stl_threads.h>
+# define __NODE_ALLOCATOR_THREADS true
 # ifdef __STL_SGI_THREADS
-    // This should work without threads, with sproc threads, or with
-    // pthreads.  It is suboptimal in all cases.
-    // It is unlikely to even compile on nonSGI machines.
-
+  // We test whether threads are in use before locking.
+  // Perhaps this should be moved into stl_threads.h, but that
+  // probably makes it harder to avoid the procedure call when
+  // it isn't needed.
     extern "C" {
       extern int __us_rsthread_malloc;
     }
@@ -97,19 +76,21 @@
 	// would be cleaner but fails with certain levels of standard
 	// conformance.
 #   define __NODE_ALLOCATOR_LOCK if (threads && __us_rsthread_malloc) \
-                { _S_lock(&_S_node_allocator_lock); }
+                { _S_node_allocator_lock._M_acquire_lock(); }
 #   define __NODE_ALLOCATOR_UNLOCK if (threads && __us_rsthread_malloc) \
-                { _S_unlock(&_S_node_allocator_lock); }
-#   define __NODE_ALLOCATOR_THREADS true
-#   define __VOLATILE volatile  // Needed at -O3 on SGI
+                { _S_node_allocator_lock._M_release_lock(); }
+# else /* !__STL_SGI_THREADS */
+#   define __NODE_ALLOCATOR_LOCK \
+        { if (threads) _S_node_allocator_lock._M_acquire_lock(); }
+#   define __NODE_ALLOCATOR_UNLOCK \
+        { if (threads) _S_node_allocator_lock._M_release_lock(); }
 # endif
-# ifdef _NOTHREADS
+#else
 //  Thread-unsafe
 #   define __NODE_ALLOCATOR_LOCK
 #   define __NODE_ALLOCATOR_UNLOCK
 #   define __NODE_ALLOCATOR_THREADS false
-#   define __VOLATILE
-# endif
+#endif
 
 __STL_BEGIN_NAMESPACE
 
@@ -328,10 +309,10 @@ __PRIVATE:
   };
 private:
 # ifdef __SUNPRO_CC
-    static _Obj* __VOLATILE _S_free_list[]; 
+    static _Obj* __STL_VOLATILE _S_free_list[]; 
         // Specifying a size results in duplicate def for 4.1
 # else
-    static _Obj* __VOLATILE _S_free_list[_NFREELISTS]; 
+    static _Obj* __STL_VOLATILE _S_free_list[_NFREELISTS]; 
 # endif
   static  size_t _S_freelist_index(size_t __bytes) {
         return (((__bytes) + _ALIGN-1)/_ALIGN - 1);
@@ -348,45 +329,27 @@ private:
   static char* _S_end_free;
   static size_t _S_heap_size;
 
-# ifdef __STL_SGI_THREADS
-    static volatile unsigned long _S_node_allocator_lock;
-    static void _S_lock(volatile unsigned long*); 
-    static inline void _S_unlock(volatile unsigned long*);
+# ifdef __STL_THREADS
+    static _STL_mutex_lock _S_node_allocator_lock;
 # endif
 
-# ifdef _PTHREADS
-    static pthread_mutex_t _S_node_allocator_lock;
-# endif
-
-# ifdef __STL_WIN32THREADS
-    static CRITICAL_SECTION _S_node_allocator_lock;
-    static bool _S_node_allocator_lock_initialized;
-
-  public:
-    __default_alloc_template() {
-	// This assumes the first constructor is called before threads
-	// are started.
-        if (!_S_node_allocator_lock_initialized) {
-            InitializeCriticalSection(&_S_node_allocator_lock);
-            _S_node_allocator_lock_initialized = true;
-        }
-    }
-  private:
-# endif
-
+    // It would be nice to use _STL_auto_lock here.  But we
+    // don't need the NULL check.  And we do need a test whether
+    // threads have actually been started.
+    class _Lock;
+    friend class _Lock;
     class _Lock {
         public:
             _Lock() { __NODE_ALLOCATOR_LOCK; }
             ~_Lock() { __NODE_ALLOCATOR_UNLOCK; }
     };
-    friend class _Lock;
 
 public:
 
   /* __n must be > 0      */
   static void* allocate(size_t __n)
   {
-    _Obj* __VOLATILE* __my_free_list;
+    _Obj* __STL_VOLATILE* __my_free_list;
     _Obj* __RESTRICT __result;
 
     if (__n > (size_t) _MAX_BYTES) {
@@ -413,7 +376,7 @@ public:
   static void deallocate(void* __p, size_t __n)
   {
     _Obj* __q = (_Obj*)__p;
-    _Obj* __VOLATILE* __my_free_list;
+    _Obj* __STL_VOLATILE* __my_free_list;
 
     if (__n > (size_t) _MAX_BYTES) {
         malloc_alloc::deallocate(__p, __n);
@@ -467,7 +430,7 @@ __default_alloc_template<__threads, __inst>::_S_chunk_alloc(size_t __size,
 	  2 * __total_bytes + _S_round_up(_S_heap_size >> 4);
         // Try to make use of the left-over piece.
         if (__bytes_left > 0) {
-            _Obj* __VOLATILE* __my_free_list =
+            _Obj* __STL_VOLATILE* __my_free_list =
                         _S_free_list + _S_freelist_index(__bytes_left);
 
             ((_Obj*)_S_start_free) -> _M_free_list_link = *__my_free_list;
@@ -476,7 +439,7 @@ __default_alloc_template<__threads, __inst>::_S_chunk_alloc(size_t __size,
         _S_start_free = (char*)malloc(__bytes_to_get);
         if (0 == _S_start_free) {
             size_t __i;
-            _Obj* __VOLATILE* __my_free_list;
+            _Obj* __STL_VOLATILE* __my_free_list;
 	    _Obj* __p;
             // Try to make do with what we have.  That can't
             // hurt.  We do not try smaller requests, since that tends
@@ -515,7 +478,7 @@ __default_alloc_template<__threads, __inst>::_S_refill(size_t __n)
 {
     int __nobjs = 20;
     char* __chunk = _S_chunk_alloc(__n, __nobjs);
-    _Obj* __VOLATILE* __my_free_list;
+    _Obj* __STL_VOLATILE* __my_free_list;
     _Obj* __result;
     _Obj* __current_obj;
     _Obj* __next_obj;
@@ -560,112 +523,13 @@ __default_alloc_template<threads, inst>::reallocate(void* __p,
     return(__result);
 }
 
-#ifdef _PTHREADS
+#ifdef __STL_THREADS
     template <bool __threads, int __inst>
-    pthread_mutex_t
+    _STL_mutex_lock
     __default_alloc_template<__threads, __inst>::_S_node_allocator_lock
-        = PTHREAD_MUTEX_INITIALIZER;
+        __STL_MUTEX_INITIALIZER;
 #endif
 
-#ifdef __STL_WIN32THREADS
-    template <bool __threads, int __inst>
-    CRITICAL_SECTION
-    __default_alloc_template<__threads, __inst>::
-      _S_node_allocator_lock;
-
-    template <bool __threads, int __inst>
-    bool
-    __default_alloc_template<__threads, __inst>::
-      _S_node_allocator_lock_initialized
-	= false;
-#endif
-
-#ifdef __STL_SGI_THREADS
-__STL_END_NAMESPACE
-#include <mutex.h>
-#include <time.h>  /* XXX should use <ctime> */
-__STL_BEGIN_NAMESPACE
-// Somewhat generic lock implementations.  We need only test-and-set
-// and some way to sleep.  These should work with both SGI pthreads
-// and sproc threads.  They may be useful on other systems.
-template <bool __threads, int __inst>
-volatile unsigned long
-__default_alloc_template<__threads, __inst>::_S_node_allocator_lock = 0;
-
-#if __mips < 3 || !(defined (_ABIN32) || defined(_ABI64)) || defined(__GNUC__)
-#   define __test_and_set(l,v) test_and_set(l,v)
-#endif
-
-template <bool __threads, int __inst>
-void 
-__default_alloc_template<__threads, __inst>::
-  _S_lock(volatile unsigned long* __lock)
-{
-    const unsigned __low_spin_max = 30;  // spins if we suspect uniprocessor
-    const unsigned __high_spin_max = 1000; // spins for multiprocessor
-    static unsigned __spin_max = __low_spin_max;
-    unsigned __my_spin_max;
-    static unsigned __last_spins = 0;
-    unsigned __my_last_spins;
-    unsigned __junk;
-#   define __ALLOC_PAUSE \
-      __junk *= __junk; __junk *= __junk; __junk *= __junk; __junk *= __junk
-    int __i;
-
-    if (!__test_and_set((unsigned long*)__lock, 1)) {
-        return;
-    }
-    __my_spin_max = __spin_max;
-    __my_last_spins = __last_spins;
-    for (__i = 0; __i < __my_spin_max; __i++) {
-        if (__i < __my_last_spins/2 || *__lock) {
-            __ALLOC_PAUSE;
-            continue;
-        }
-        if (!__test_and_set((unsigned long*)__lock, 1)) {
-            // got it!
-            // Spinning worked.  Thus we're probably not being scheduled
-            // against the other process with which we were contending.
-            // Thus it makes sense to spin longer the next time.
-            __last_spins = __i;
-            __spin_max = __high_spin_max;
-            return;
-        }
-    }
-    // We are probably being scheduled against the other process.  Sleep.
-    __spin_max = __low_spin_max;
-    for (__i = 0 ;; ++__i) {
-        struct timespec __ts;
-        int __log_nsec = __i + 6;
-
-        if (!__test_and_set((unsigned long *)__lock, 1)) {
-            return;
-        }
-        if (__log_nsec > 27) __log_nsec = 27;
-		/* Max sleep is 2**27nsec ~ 60msec      */
-        __ts.tv_sec = 0;
-        __ts.tv_nsec = 1 << __log_nsec;
-        nanosleep(&__ts, 0);
-    }
-}
-
-template <bool __threads, int __inst>
-inline void
-__default_alloc_template<__threads, __inst>::_S_unlock(
-  volatile unsigned long* __lock)
-{
-#   if defined(__GNUC__) && __mips >= 3
-        asm("sync");
-        *__lock = 0;
-#   elif __mips >= 3 && (defined (_ABIN32) || defined(_ABI64))
-        __lock_release(__lock);
-#   else 
-        *__lock = 0;
-        // This is not sufficient on many multiprocessors, since
-        // writes to protected variables and the lock may be reordered.
-#   endif
-}
-#endif
 
 template <bool __threads, int __inst>
 char* __default_alloc_template<__threads, __inst>::_S_start_free = 0;
@@ -677,7 +541,7 @@ template <bool __threads, int __inst>
 size_t __default_alloc_template<__threads, __inst>::_S_heap_size = 0;
 
 template <bool __threads, int __inst>
-__default_alloc_template<__threads, __inst>::_Obj* __VOLATILE
+__default_alloc_template<__threads, __inst>::_Obj* __STL_VOLATILE
 __default_alloc_template<__threads, __inst> ::_S_free_list[
 # ifdef __SUNPRO_CC
     _NFREELISTS

@@ -38,14 +38,20 @@ __STL_BEGIN_NAMESPACE
 #pragma set woff 1375
 #endif
 
-#ifndef __STL_LIMITED_DEFAULT_TEMPLATES
-template <class _Value, class _HashFcn = hash<_Value>,
-          class _EqualKey = equal_to<_Value>,
-          class _Alloc = __STL_DEFAULT_ALLOCATOR(_Value) >
-#else
-template <class _Value, class _HashFcn, class _EqualKey, 
-          class _Alloc = __STL_DEFAULT_ALLOCATOR(_Value) >
-#endif
+// Forward declaration of equality operator; needed for friend declaration.
+
+template <class _Value,
+          class _HashFcn  __STL_DEPENDENT_DEFAULT_TMPL(hash<_Value>),
+          class _EqualKey __STL_DEPENDENT_DEFAULT_TMPL(equal_to<_Value>),
+          class _Alloc =  __STL_DEFAULT_ALLOCATOR(_Value) >
+class hash_set;
+
+template <class _Value, class _HashFcn, class _EqualKey, class _Alloc>
+inline bool 
+operator==(const hash_set<_Value,_HashFcn,_EqualKey,_Alloc>& __hs1,
+           const hash_set<_Value,_HashFcn,_EqualKey,_Alloc>& __hs2);
+
+template <class _Value, class _HashFcn, class _EqualKey, class _Alloc>
 class hash_set
 {
 private:
@@ -146,8 +152,9 @@ public:
   size_type max_size() const { return _M_ht.max_size(); }
   bool empty() const { return _M_ht.empty(); }
   void swap(hash_set& __hs) { _M_ht.swap(__hs._M_ht); }
-  friend bool operator== __STL_NULL_TMPL_ARGS (const hash_set&,
-                                               const hash_set&);
+
+  friend bool __STD_QUALIFIER
+  operator== __STL_NULL_TMPL_ARGS (const hash_set&, const hash_set&);
 
   iterator begin() const { return _M_ht.begin(); }
   iterator end() const { return _M_ht.end(); }
@@ -206,6 +213,13 @@ operator==(const hash_set<_Value,_HashFcn,_EqualKey,_Alloc>& __hs1,
 
 #ifdef __STL_FUNCTION_TMPL_PARTIAL_ORDER
 
+template <class _Value, class _HashFcn, class _EqualKey, class _Alloc>
+inline bool 
+operator!=(const hash_set<_Value,_HashFcn,_EqualKey,_Alloc>& __hs1,
+           const hash_set<_Value,_HashFcn,_EqualKey,_Alloc>& __hs2) {
+  return !(__hs1 == __hs2);
+}
+
 template <class _Val, class _HashFcn, class _EqualKey, class _Alloc>
 inline void 
 swap(hash_set<_Val,_HashFcn,_EqualKey,_Alloc>& __hs1,
@@ -217,14 +231,19 @@ swap(hash_set<_Val,_HashFcn,_EqualKey,_Alloc>& __hs1,
 #endif /* __STL_FUNCTION_TMPL_PARTIAL_ORDER */
 
 
-#ifndef __STL_LIMITED_DEFAULT_TEMPLATES
-template <class _Value, class _HashFcn = hash<_Value>,
-          class _EqualKey = equal_to<_Value>,
-          class _Alloc = __STL_DEFAULT_ALLOCATOR(_Value) >
-#else
-template <class _Value, class _HashFcn, class _EqualKey, 
-          class _Alloc = __STL_DEFAULT_ALLOCATOR(_Value) >
-#endif
+template <class _Value,
+          class _HashFcn  __STL_DEPENDENT_DEFAULT_TMPL(hash<_Value>),
+          class _EqualKey __STL_DEPENDENT_DEFAULT_TMPL(equal_to<_Value>),
+          class _Alloc =  __STL_DEFAULT_ALLOCATOR(_Value) >
+class hash_multiset;
+
+template <class _Val, class _HashFcn, class _EqualKey, class _Alloc>
+inline bool 
+operator==(const hash_multiset<_Val,_HashFcn,_EqualKey,_Alloc>& __hs1,
+           const hash_multiset<_Val,_HashFcn,_EqualKey,_Alloc>& __hs2);
+
+
+template <class _Value, class _HashFcn, class _EqualKey, class _Alloc>
 class hash_multiset
 {
 private:
@@ -325,8 +344,9 @@ public:
   size_type max_size() const { return _M_ht.max_size(); }
   bool empty() const { return _M_ht.empty(); }
   void swap(hash_multiset& hs) { _M_ht.swap(hs._M_ht); }
-  friend bool operator== __STL_NULL_TMPL_ARGS (const hash_multiset&,
-                                               const hash_multiset&);
+
+  friend bool __STD_QUALIFIER
+  operator== __STL_NULL_TMPL_ARGS (const hash_multiset&,const hash_multiset&);
 
   iterator begin() const { return _M_ht.begin(); }
   iterator end() const { return _M_ht.end(); }
@@ -377,6 +397,13 @@ operator==(const hash_multiset<_Val,_HashFcn,_EqualKey,_Alloc>& __hs1,
 }
 
 #ifdef __STL_FUNCTION_TMPL_PARTIAL_ORDER
+
+template <class _Val, class _HashFcn, class _EqualKey, class _Alloc>
+inline bool 
+operator!=(const hash_multiset<_Val,_HashFcn,_EqualKey,_Alloc>& __hs1,
+           const hash_multiset<_Val,_HashFcn,_EqualKey,_Alloc>& __hs2) {
+  return !(__hs1 == __hs2);
+}
 
 template <class _Val, class _HashFcn, class _EqualKey, class _Alloc>
 inline void 

@@ -507,25 +507,23 @@ public:
   template <class _StrictWeakOrdering> void merge(list&, _StrictWeakOrdering);
   template <class _StrictWeakOrdering> void sort(_StrictWeakOrdering);
 #endif /* __STL_MEMBER_TEMPLATES */
-
-  friend bool operator== __STL_NULL_TMPL_ARGS (
-    const list& __x, const list& __y);
 };
 
 template <class _Tp, class _Alloc>
-inline bool operator==(const list<_Tp,_Alloc>& __x,
-                       const list<_Tp,_Alloc>& __y)
+inline bool 
+operator==(const list<_Tp,_Alloc>& __x, const list<_Tp,_Alloc>& __y)
 {
-  typedef typename list<_Tp,_Alloc>::_Node _Node;
-  _Node* __e1 = __x._M_node;
-  _Node* __e2 = __y._M_node;
-  _Node* __n1 = (_Node*) __e1->_M_next;
-  _Node* __n2 = (_Node*) __e2->_M_next;
-  for ( ; __n1 != __e1 && __n2 != __e2 ;
-          __n1 = (_Node*) __n1->_M_next, __n2 = (_Node*) __n2->_M_next)
-    if (__n1->_M_data != __n2->_M_data)
-      return false;
-  return __n1 == __e1 && __n2 == __e2;
+  typedef typename list<_Tp,_Alloc>::const_iterator const_iterator;
+  const_iterator __end1 = __x.end();
+  const_iterator __end2 = __y.end();
+
+  const_iterator __i1 = __x.begin();
+  const_iterator __i2 = __y.begin();
+  while (__i1 != __end1 && __i2 != __end2 && *__i1 == *__i2) {
+    ++__i1;
+    ++__i2;
+  }
+  return __i1 == __end1 && __i2 == __end2;
 }
 
 template <class _Tp, class _Alloc>
@@ -537,6 +535,30 @@ inline bool operator<(const list<_Tp,_Alloc>& __x,
 }
 
 #ifdef __STL_FUNCTION_TMPL_PARTIAL_ORDER
+
+template <class _Tp, class _Alloc>
+inline bool operator!=(const list<_Tp,_Alloc>& __x,
+                       const list<_Tp,_Alloc>& __y) {
+  return !(__x == __y);
+}
+
+template <class _Tp, class _Alloc>
+inline bool operator>(const list<_Tp,_Alloc>& __x,
+                      const list<_Tp,_Alloc>& __y) {
+  return __y < __x;
+}
+
+template <class _Tp, class _Alloc>
+inline bool operator<=(const list<_Tp,_Alloc>& __x,
+                       const list<_Tp,_Alloc>& __y) {
+  return !(__y < __x);
+}
+
+template <class _Tp, class _Alloc>
+inline bool operator>=(const list<_Tp,_Alloc>& __x,
+                       const list<_Tp,_Alloc>& __y) {
+  return !(__x < __y);
+}
 
 template <class _Tp, class _Alloc>
 inline void 

@@ -16,30 +16,34 @@
 
 #include <stl_exception.h>
 
-#if !(defined(_MIPS_SIM) && defined(_ABIO32) && _MIPS_SIM == _ABIO32)
+#if defined(__STL_USE_EXCEPTIONS) || \
+    !(defined(_MIPS_SIM) && defined(_ABIO32) && _MIPS_SIM == _ABIO32)
 
 #include <stl_string_fwd.h>
 
 __STL_BEGIN_NAMESPACE
 
-class logic_error : public __STL_EXCEPTION_BASE {
+class __Named_exception : public __STL_EXCEPTION_BASE {
 public:
-  logic_error(const string& __s)
-    { _S_string_copy(__s, _M_name, _S_bufsize); }
+  __Named_exception(const string& __str) {
+    strncpy(_M_name, __get_c_string(__str), _S_bufsize);
+    _M_name[_S_bufsize - 1] = '\0';
+  }
   virtual const char* what() const __STL_NOTHROW { return _M_name; }
+
 private:
   enum { _S_bufsize = 256 };
   char _M_name[_S_bufsize];
 };
 
-class runtime_error : public __STL_EXCEPTION_BASE {
+class logic_error : public __Named_exception {
 public:
-  runtime_error(const string& __s)
-    { _S_string_copy(__s, _M_name, _S_bufsize); }
-  virtual const char* what() const __STL_NOTHROW { return _M_name; }
-private:
-  enum { _S_bufsize = 256 };
-  char _M_name[_S_bufsize];
+  logic_error(const string& __s) : __Named_exception(__s) {}
+};
+
+class runtime_error : public __Named_exception {
+public:
+  runtime_error(const string& __s) : __Named_exception(__s) {}
 };
 
 class domain_error : public logic_error {
@@ -83,7 +87,7 @@ __STL_END_NAMESPACE
 #include <string>
 #endif
 
-#endif /* Not o32 */
+#endif /* Not o32, and no exceptions */
 
 #endif /* __SGI_STDEXCEPT */
 

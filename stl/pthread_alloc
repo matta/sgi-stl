@@ -27,10 +27,15 @@
 // cache lines among processors, with potentially serious performance
 // consequences.
 
+#include <errno.h>
 #include <stl_config.h>
 #include <stl_alloc.h>
 #ifndef __RESTRICT
 #  define __RESTRICT
+#endif
+
+#ifndef __STL_NO_BAD_ALLOC
+#  include <new>
 #endif
 
 __STL_BEGIN_NAMESPACE
@@ -110,6 +115,7 @@ private:
   static _Pthread_alloc_per_thread_state<_Max_size> *_S_get_per_thread_state();
         // ensure that the current thread has an associated
         // per thread state.
+  class _M_lock;
   friend class _M_lock;
   class _M_lock {
       public:
@@ -203,15 +209,24 @@ _Pthread_alloc_template<_Max_size>::_S_get_per_thread_state()
 {
     /*REFERENCED*/
     _M_lock __lock_instance;	// Need to acquire lock here.
+    int __ret_code;
     _Pthread_alloc_per_thread_state<_Max_size> * __result;
     if (!_S_key_initialized) {
         if (pthread_key_create(&_S_key, _S_destructor)) {
-            abort();  // failed
+	    __THROW_BAD_ALLOC;  // defined in stl_alloc.h
         }
         _S_key_initialized = true;
     }
     __result = _S_new_per_thread_state();
-    if (pthread_setspecific(_S_key, __result)) abort();
+    __ret_code = pthread_setspecific(_S_key, __result);
+    if (__ret_code) {
+      if (__ret_code == ENOMEM) {
+	__THROW_BAD_ALLOC;
+      } else {
+	// EINVAL
+	abort();
+      }
+    }
     return __result;
 }
 
@@ -376,13 +391,14 @@ public:
   typedef const _Tp& const_reference;
   typedef _Tp        value_type;
 
-  template <class _U> struct rebind {
-    typedef pthread_allocator<_U> other;
+  template <class _NewType> struct rebind {
+    typedef pthread_allocator<_NewType> other;
   };
 
   pthread_allocator() __STL_NOTHROW {}
   pthread_allocator(const pthread_allocator& a) __STL_NOTHROW {}
-  template <class _U> pthread_allocator(const pthread_allocator<_U>&)
+  template <class _OtherType>
+	pthread_allocator(const pthread_allocator<_OtherType>&)
 		__STL_NOTHROW {}
   ~pthread_allocator() __STL_NOTHROW {}
 
@@ -416,8 +432,8 @@ public:
   typedef const void* const_pointer;
   typedef void        value_type;
 
-  template <class _U> struct rebind {
-    typedef pthread_allocator<_U> other;
+  template <class _NewType> struct rebind {
+    typedef pthread_allocator<_NewType> other;
   };
 };
 
@@ -451,16 +467,16 @@ struct _Alloc_traits<_Tp, _Pthread_alloc_template<_Max_size> >
           allocator_type;
 };
 
-template <class _Tp, class _U, size_t _Max>
-struct _Alloc_traits<_Tp, __allocator<_U, _Pthread_alloc_template<_Max> > >
+template <class _Tp, class _Atype, size_t _Max>
+struct _Alloc_traits<_Tp, __allocator<_Atype, _Pthread_alloc_template<_Max> > >
 {
   static const bool _S_instanceless = true;
   typedef simple_alloc<_Tp, _Pthread_alloc_template<_Max> > _Alloc_type;
   typedef __allocator<_Tp, _Pthread_alloc_template<_Max> > allocator_type;
 };
 
-template <class _Tp, class _U>
-struct _Alloc_traits<_Tp, pthread_allocator<_U> >
+template <class _Tp, class _Atype>
+struct _Alloc_traits<_Tp, pthread_allocator<_Atype> >
 {
   static const bool _S_instanceless = true;
   typedef simple_alloc<_Tp, _Pthread_alloc_template<> > _Alloc_type;

@@ -150,6 +150,9 @@ struct _Bit_iterator : public random_access_iterator<bool, ptrdiff_t> {
   bool operator<(iterator __x) const {
     return _M_p < __x._M_p || (_M_p == __x._M_p && _M_offset < __x._M_offset);
   }
+  bool operator>(const iterator& __x) const  { return __x < *this; }
+  bool operator<=(const iterator& __x) const { return !(__x < *this); }
+  bool operator>=(const iterator& __x) const { return !(*this < __x); }
 };
 
 struct _Bit_const_iterator
@@ -239,6 +242,9 @@ struct _Bit_const_iterator
   bool operator<(const_iterator __x) const {
     return _M_p < __x._M_p || (_M_p == __x._M_p && _M_offset < __x._M_offset);
   }
+  bool operator>(const const_iterator& __x) const  { return __x < *this; }
+  bool operator<=(const const_iterator& __x) const { return !(__x < *this); }
+  bool operator>=(const const_iterator& __x) const { return !(*this < __x); }
 };
 
 // Bit-vector base class, which encapsulates the difference between
@@ -796,14 +802,24 @@ public:
     else
       insert(end(), __new_size - size(), __x);
   }
+  void flip() {
+    for (unsigned int* __p = _M_start._M_p; __p != _M_end_of_storage; ++__p)
+      *__p = ~*__p;
+  }
+
   void clear() { erase(begin(), end()); }
 };
 
 #ifdef __SGI_STL_VECBOOL_TEMPLATE
 
+// This typedef is non-standard.  It is provided for backward compatibility.
 typedef vector<bool, alloc> bit_vector;
 
 #else /* __SGI_STL_VECBOOL_TEMPLATE */
+
+inline void swap(bit_vector& __x, bit_vector& __y) {
+  __x.swap(__y);
+}
 
 inline bool 
 operator==(const bit_vector& __x, const bit_vector& __y)
@@ -813,10 +829,31 @@ operator==(const bit_vector& __x, const bit_vector& __y)
 }
 
 inline bool 
+operator!=(const bit_vector& __x, const bit_vector& __y)
+{
+  return !(__x == __y);
+}
+
+inline bool 
 operator<(const bit_vector& __x, const bit_vector& __y)
 {
   return lexicographical_compare(__x.begin(), __x.end(), 
                                  __y.begin(), __y.end());
+}
+
+inline bool operator>(const bit_vector& __x, const bit_vector& __y)
+{
+  return __y < __x;
+}
+
+inline bool operator<=(const bit_vector& __x, const bit_vector& __y)
+{
+  return !(__y < __x);
+}
+
+inline bool operator>=(const bit_vector& __x, const bit_vector& __y)
+{
+  return !(__x < __y);
 }
 
 #endif /* __SGI_STL_VECBOOL_TEMPLATE */

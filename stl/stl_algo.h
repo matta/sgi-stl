@@ -773,7 +773,10 @@ _RandomAccessIter __rotate(_RandomAccessIter __first,
   _Distance __l = __n - __k;
   _RandomAccessIter __result = __first + (__last - __middle);
 
-  if (__k == __l) {
+  if (__k == 0)
+    return __last;
+
+  else if (__k == __l) {
     swap_ranges(__first, __middle, __middle);
     return __result;
   }

@@ -38,13 +38,21 @@ __STL_BEGIN_NAMESPACE
 #pragma set woff 1375
 #endif
 
-#ifndef __STL_LIMITED_DEFAULT_TEMPLATES
-template <class _Key, class _Compare = less<_Key>, 
+// Forward declaration of operators < and ==, needed for friend declaration.
+
+template <class _Key, class _Compare __STL_DEPENDENT_DEFAULT_TMPL(less<_Key>),
           class _Alloc = __STL_DEFAULT_ALLOCATOR(_Key) >
-#else
-template <class _Key, class _Compare, 
-          class _Alloc = __STL_DEFAULT_ALLOCATOR(_Key) >
-#endif
+class multiset;
+
+template <class _Key, class _Compare, class _Alloc>
+inline bool operator==(const multiset<_Key,_Compare,_Alloc>& __x, 
+                       const multiset<_Key,_Compare,_Alloc>& __y);
+
+template <class _Key, class _Compare, class _Alloc>
+inline bool operator<(const multiset<_Key,_Compare,_Alloc>& __x, 
+                      const multiset<_Key,_Compare,_Alloc>& __y);
+
+template <class _Key, class _Compare, class _Alloc>
 class multiset {
 public:
   // typedefs:
@@ -182,10 +190,12 @@ public:
   pair<iterator,iterator> equal_range(const key_type& __x) const {
     return _M_t.equal_range(__x);
   }
-  friend bool operator== __STL_NULL_TMPL_ARGS (const multiset&,
-                                               const multiset&);
-  friend bool operator< __STL_NULL_TMPL_ARGS (const multiset&,
-                                              const multiset&);
+
+  friend bool __STD_QUALIFIER
+  operator== __STL_NULL_TMPL_ARGS (const multiset&, const multiset&);
+  friend bool __STD_QUALIFIER
+  operator< __STL_NULL_TMPL_ARGS (const multiset&, const multiset&);
+
 };
 
 template <class _Key, class _Compare, class _Alloc>
@@ -201,6 +211,30 @@ inline bool operator<(const multiset<_Key,_Compare,_Alloc>& __x,
 }
 
 #ifdef __STL_FUNCTION_TMPL_PARTIAL_ORDER
+
+template <class _Key, class _Compare, class _Alloc>
+inline bool operator!=(const multiset<_Key,_Compare,_Alloc>& __x, 
+                       const multiset<_Key,_Compare,_Alloc>& __y) {
+  return !(__x == __y);
+}
+
+template <class _Key, class _Compare, class _Alloc>
+inline bool operator>(const multiset<_Key,_Compare,_Alloc>& __x, 
+                      const multiset<_Key,_Compare,_Alloc>& __y) {
+  return __y < __x;
+}
+
+template <class _Key, class _Compare, class _Alloc>
+inline bool operator<=(const multiset<_Key,_Compare,_Alloc>& __x, 
+                       const multiset<_Key,_Compare,_Alloc>& __y) {
+  return !(__y < __x);
+}
+
+template <class _Key, class _Compare, class _Alloc>
+inline bool operator>=(const multiset<_Key,_Compare,_Alloc>& __x, 
+                       const multiset<_Key,_Compare,_Alloc>& __y) {
+  return !(__x < __y);
+}
 
 template <class _Key, class _Compare, class _Alloc>
 inline void swap(multiset<_Key,_Compare,_Alloc>& __x, 

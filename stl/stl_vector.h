@@ -498,6 +498,30 @@ inline void swap(vector<_Tp, _Alloc>& __x, vector<_Tp, _Alloc>& __y)
   __x.swap(__y);
 }
 
+template <class _Tp, class _Alloc>
+inline bool
+operator!=(const vector<_Tp, _Alloc>& __x, const vector<_Tp, _Alloc>& __y) {
+  return !(__x == __y);
+}
+
+template <class _Tp, class _Alloc>
+inline bool
+operator>(const vector<_Tp, _Alloc>& __x, const vector<_Tp, _Alloc>& __y) {
+  return __y < __x;
+}
+
+template <class _Tp, class _Alloc>
+inline bool
+operator<=(const vector<_Tp, _Alloc>& __x, const vector<_Tp, _Alloc>& __y) {
+  return !(__y < __x);
+}
+
+template <class _Tp, class _Alloc>
+inline bool
+operator>=(const vector<_Tp, _Alloc>& __x, const vector<_Tp, _Alloc>& __y) {
+  return !(__x < __y);
+}
+
 #endif /* __STL_FUNCTION_TMPL_PARTIAL_ORDER */
 
 template <class _Tp, class _Alloc>

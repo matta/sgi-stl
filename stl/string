@@ -14,13 +14,16 @@
 #ifndef __SGI_STL_STRING
 #define __SGI_STL_STRING
 
+#include <stl_config.h>
+#include <stl_string_fwd.h>
 #include <ctype.h>        
-#include <stdexcept>      // Includes stl_string_fwd.h and stl_config.h
-#include <char_traits.h>  // This header name is an extension.
-#include <iterator>
 #include <functional>
+#include <stdexcept>      
+#include <char_traits.h>  // This header name is an extension.
+#include <stl_iterator_base.h>
 #include <memory>
 #include <algorithm>
+
 
 // Standard C++ string class.  This class has performance
 // characteristics very much like vector<>, meaning, for example, that
@@ -50,29 +53,7 @@ __STL_BEGIN_NAMESPACE
 #pragma set woff 1375
 #endif
 
-// Helper classes that turn char_traits into function objects.
-
-template <class _Traits>
-struct _Eq_traits
-  : public binary_function<typename _Traits::char_type,
-                           typename _Traits::char_type,
-                           bool>
-{
-  bool operator()(const typename _Traits::char_type& __x,
-                  const typename _Traits::char_type& __y) const
-    { return _Traits::eq(__x, __y); }
-};
-
-template <class _Traits>
-struct _Lt_traits
-  : public binary_function<typename _Traits::char_type,
-                           typename _Traits::char_type,
-                           bool>
-{
-  bool operator()(const typename _Traits::char_type& __x,
-                  const typename _Traits::char_type& __y) const
-    { return _Traits::lt(__x, __y); }
-};
+// A helper class to use a char_traits as a function object.
 
 template <class _Traits>
 struct _Not_within_traits
@@ -197,10 +178,12 @@ protected:
 #else /* __STL_USE_STD_ALLOCATORS */
 
 template <class _Tp, class _Alloc> class _String_base {
-protected:
-  typedef simple_alloc<_Tp, _Alloc> _Alloc_type;
+public:
   typedef _Alloc allocator_type;
   allocator_type get_allocator() const { return allocator_type(); }
+
+protected:
+  typedef simple_alloc<_Tp, _Alloc> _Alloc_type;
 
   _Tp* _M_start;
   _Tp* _M_finish;
@@ -243,6 +226,7 @@ protected:
 
 #endif /* __STL_USE_STD_ALLOCATORS */
 
+// Helper functions for exception handling.
 template <class _Tp, class _Alloc> 
 void _String_base<_Tp,_Alloc>::_M_throw_length_error() const {
   __STL_THROW(length_error("basic_string"));
@@ -252,6 +236,7 @@ template <class _Tp, class _Alloc>
 void _String_base<_Tp, _Alloc>::_M_throw_out_of_range() const {
   __STL_THROW(out_of_range("basic_string"));
 }
+
 
 // ------------------------------------------------------------
 // Class basic_string.  
@@ -285,26 +270,33 @@ public:
 
   typedef const value_type*                const_iterator;
   typedef value_type*                      iterator;
+
+#ifdef __STL_CLASS_PARTIAL_SPECIALIZATION
   typedef reverse_iterator<const_iterator> const_reverse_iterator;
   typedef reverse_iterator<iterator>       reverse_iterator;
+#else /* __STL_CLASS_PARTIAL_SPECIALIZATION */
+  typedef reverse_iterator<const_iterator, value_type, const_reference, 
+                           difference_type>  
+          const_reverse_iterator;
+  typedef reverse_iterator<iterator, value_type, reference, difference_type>
+          reverse_iterator; 
+#endif /* __STL_PARTIAL_SPECIALIZATION */
 
-  static const size_type npos = -1;
+  static const size_type npos;
 
   typedef _String_base<_CharT,_Alloc> _Base;
 
 public:                         // Constructor, destructor, assignment.
   typedef typename _Base::allocator_type allocator_type;
-#ifdef __STL_USE_NAMESPACES
-  using _Base::get_allocator;
-#endif /* __STL_USE_NAMESPACES */
+  allocator_type get_allocator() const { return _Base::get_allocator(); }
 
   explicit basic_string(const allocator_type& __a = allocator_type())
-    : _Base(__a, 8) { construct(_M_finish); }
+    : _Base(__a, 8) { _M_terminate_string(); }
 
   struct _Reserve_t {};
   basic_string(_Reserve_t, size_t __n,
                const allocator_type& __a = allocator_type())
-    : _Base(__a, __n + 1) { construct(_M_finish); }
+    : _Base(__a, __n + 1) { _M_terminate_string(); }
 
   basic_string(const basic_string& __s) : _Base(__s.get_allocator()) 
     { _M_range_initialize(__s.begin(), __s.end()); }
@@ -339,6 +331,7 @@ public:                         // Constructor, destructor, assignment.
 
   // Check to see if _InputIterator is an integer type.  If so, then
   // it can't be an iterator.
+#ifdef __STL_MEMBER_TEMPLATES
   template <class _InputIterator>
   basic_string(_InputIterator __f, _InputIterator __l,
                const allocator_type& __a = allocator_type())
@@ -347,6 +340,14 @@ public:                         // Constructor, destructor, assignment.
     typedef typename _Is_integer<_InputIterator>::_Integral _Integral;
     _M_initialize_dispatch(__f, __l, _Integral());
   }
+#else /* __STL_MEMBER_TEMPLATES */
+  basic_string(const _CharT* __f, const _CharT* __l,
+               const allocator_type& __a = allocator_type())
+    : _Base(__a)
+  {
+    _M_range_initialize(__f, __l);
+  }
+#endif
 
   ~basic_string() { destroy(_M_start, _M_finish + 1); }
     
@@ -376,22 +377,44 @@ private:                        // Protected members inherited from base.
   using _Base::_M_end_of_storage;
 #endif /* __STL_HAS_NAMESPACES */
 
+private:                        // Helper functions used by constructors
+                                // and elsewhere.
+  void _M_construct_null(_CharT* __p) {
+    construct(__p);
+#   ifdef __STL_DEFAULT_CONSTRUCTOR_BUG
+    __STL_TRY {
+      *__p = (_CharT) 0;
+    }
+    __STL_UNWIND(destroy(__p));
+#   endif
+  }
+
+  static _CharT _M_null() {
+#   ifndef __STL_DEFAULT_CONSTRUCTOR_BUG
+    return _CharT();
+#   else
+    return (_CharT) 0;
+#   endif
+  }
+
 private:                        
   // Helper functions used by constructors.  It is a severe error for
   // any of them to be called anywhere except from within constructors.
 
   void _M_terminate_string() {
     __STL_TRY {
-      construct(_M_finish);
+      _M_construct_null(_M_finish);
     }
     __STL_UNWIND(destroy(_M_start, _M_finish));
   }
+
+#ifdef __STL_MEMBER_TEMPLATES
     
   template <class _InputIter>
   void _M_range_initialize(_InputIter __f, _InputIter __l,
                            input_iterator_tag) {
     _M_allocate_block(8);
-    construct(_M_finish);
+    _M_construct_null(_M_finish);
     __STL_TRY {
       append(__f, __l);
     }
@@ -401,8 +424,8 @@ private:
   template <class _ForwardIter>
   void _M_range_initialize(_ForwardIter __f, _ForwardIter __l, 
                            forward_iterator_tag) {
-    typename iterator_traits<_ForwardIter>::difference_type __n
-      = distance(__f, __l);
+    difference_type __n = 0;
+    distance(__f, __l, __n);
     _M_allocate_block(__n + 1);
     _M_finish = uninitialized_copy(__f, __l, _M_start);
     _M_terminate_string();
@@ -426,6 +449,16 @@ private:
      _M_range_initialize(__f, __l);
   }
     
+#else /* __STL_MEMBER_TEMPLATES */
+
+  void _M_range_initialize(const _CharT* __f, const _CharT* __l) {
+    ptrdiff_t __n = __l - __f;
+    _M_allocate_block(__n + 1);
+    _M_finish = uninitialized_copy(__f, __l, _M_start);
+    _M_terminate_string();
+  }
+
+#endif /* __STL_MEMBER_TEMPLATES */
 
 public:                         // Iterators.
   iterator begin()             { return _M_start; }
@@ -445,16 +478,18 @@ public:                         // Iterators.
 public:                         // Size, capacity, etc.
   size_type size() const { return _M_finish - _M_start; }
   size_type length() const { return size(); }
-#ifdef __STL_USE_NAMESPACES
-  using _Base::max_size;
-#endif /* __STL_USE_NAMESPACES */
 
-  void resize(size_type __n, _CharT __c = _CharT()) {
+  size_t max_size() const { return _Base::max_size(); }
+
+
+  void resize(size_type __n, _CharT __c) {
     if (__n <= size())
       erase(begin() + __n, end());
     else
       append(__n - size(), __c);
   }
+
+  void resize(size_type __n) { resize(__n, _M_null()); }
 
   void reserve(size_type = 0);
 
@@ -462,7 +497,7 @@ public:                         // Size, capacity, etc.
 
   void clear() {
     if (!empty()) {
-      _Traits::assign(*_M_start, _CharT());
+      _Traits::assign(*_M_start, _M_null());
       destroy(_M_start+1, _M_finish+1);
       _M_finish = _M_start;
     }
@@ -515,6 +550,8 @@ public:                         // Append, operator+=, push_back.
 
   basic_string& append(size_type __n, _CharT __c);
 
+#ifdef __STL_MEMBER_TEMPLATES
+
   // Check to see if _InputIterator is an integer type.  If so, then
   // it can't be an iterator.
   template <class _InputIter>
@@ -523,21 +560,29 @@ public:                         // Append, operator+=, push_back.
     return _M_append_dispatch(__first, __last, _Integral());
   }
 
+#else /* __STL_MEMBER_TEMPLATES */
+
+  basic_string& append(const _CharT* __first, const _CharT* __last);
+
+#endif /* __STL_MEMBER_TEMPLATES */
+
   void push_back(_CharT __c) {
     if (_M_finish + 1 == _M_end_of_storage)
       reserve(size() + max(size(), static_cast<size_type>(1)));
-    construct(_M_finish + 1);
+    _M_construct_null(_M_finish + 1);
     _Traits::assign(*_M_finish, __c);
     ++_M_finish;
   }
 
   void pop_back() {
-    _Traits::assign(*(_M_finish - 1), _CharT());
+    _Traits::assign(*(_M_finish - 1), _M_null());
     destroy(_M_finish);
     --_M_finish;
   }
 
 private:                        // Helper functions for append.
+
+#ifdef __STL_MEMBER_TEMPLATES
 
   template <class _InputIter>
   basic_string& append(_InputIter __f, _InputIter __l, input_iterator_tag);
@@ -557,6 +602,8 @@ private:                        // Helper functions for append.
     typedef typename iterator_traits<_InputIter>::iterator_category _Category;
     return append(__f, __l, _Category());
   }
+
+#endif /* __STL_MEMBER_TEMPLATES */
 
 public:                         // Assign
   
@@ -579,6 +626,8 @@ public:                         // Assign
 
   basic_string& assign(size_type __n, _CharT __c);
 
+#ifdef __STL_MEMBER_TEMPLATES
+
   // Check to see if _InputIterator is an integer type.  If so, then
   // it can't be an iterator.
   template <class _InputIter>
@@ -587,9 +636,13 @@ public:                         // Assign
     return _M_assign_dispatch(__first, __last, _Integral());
   }
 
+#endif  /* __STL_MEMBER_TEMPLATES */
+
   basic_string& assign(const _CharT* __f, const _CharT* __l);
 
 private:                        // Helper functions for assign.
+
+#ifdef __STL_MEMBER_TEMPLATES
 
   template <class _Integer>
   basic_string& _M_assign_dispatch(_Integer __n, _Integer __x, __true_type) {
@@ -599,6 +652,8 @@ private:                        // Helper functions for assign.
   template <class _InputIter>
   basic_string& _M_assign_dispatch(_InputIter __f, _InputIter __l,
                                    __false_type);
+
+#endif  /* __STL_MEMBER_TEMPLATES */
 
 public:                         // Insert
 
@@ -662,6 +717,8 @@ public:                         // Insert
 
   void insert(iterator __p, size_t __n, _CharT __c);
 
+#ifdef __STL_MEMBER_TEMPLATES
+
   // Check to see if _InputIterator is an integer type.  If so, then
   // it can't be an iterator.
   template <class _InputIter>
@@ -670,7 +727,16 @@ public:                         // Insert
     _M_insert_dispatch(__p, __first, __last, _Integral());
   }
 
+#else /* __STL_MEMBER_TEMPLATES */
+
+  void insert(iterator __p, const _CharT* __first, const _CharT* __last);
+
+#endif /* __STL_MEMBER_TEMPLATES */
+
 private:                        // Helper functions for insert.
+
+#ifdef __STL_MEMBER_TEMPLATES
+
   template <class _InputIter>
   void insert(iterator __p, _InputIter, _InputIter, input_iterator_tag);
 
@@ -691,14 +757,16 @@ private:                        // Helper functions for insert.
     insert(__p, __first, __last, _Category());
   }
 
-  iterator _M_insert_aux(iterator, _CharT);
-
   template <class _InputIterator>
   void 
   _M_copy(_InputIterator __first, _InputIterator __last, iterator __result) {
     for ( ; __first != __last; ++__first, ++__result)
       _Traits::assign(*__result, *__first);
   }
+
+#endif /* __STL_MEMBER_TEMPLATES */
+
+  iterator _M_insert_aux(iterator, _CharT);
 
   void 
   _M_copy(const _CharT* __first, const _CharT* __last, _CharT* __result) {
@@ -715,7 +783,7 @@ public:                         // Erase.
   }  
 
   iterator erase(iterator __position) {
-                                // The move includes the terminating _CharT().
+                                // The move includes the terminating null.
     _Traits::move(__position, __position + 1, _M_finish - __position);
     destroy(_M_finish);
     --_M_finish;
@@ -724,7 +792,7 @@ public:                         // Erase.
 
   iterator erase(iterator __first, iterator __last) {
     if (__first != __last) {
-                                // The move includes the terminating _CharT().
+                                // The move includes the terminating null.
       _Traits::move(__first, __last, (_M_finish - __last) + 1);
       const iterator __new_finish = _M_finish - (__last - __first);
       destroy(__new_finish + 1, _M_finish + 1);
@@ -810,14 +878,21 @@ public:                         // Replace.  (Conceptually equivalent
 
   // Check to see if _InputIterator is an integer type.  If so, then
   // it can't be an iterator.
+#ifdef __STL_MEMBER_TEMPLATES
   template <class _InputIter>
   basic_string& replace(iterator __first, iterator __last,
                         _InputIter __f, _InputIter __l) {
     typedef typename _Is_integer<_InputIter>::_Integral _Integral;
     return _M_replace_dispatch(__first, __last, __f, __l,  _Integral());
   }
+#else /* __STL_MEMBER_TEMPLATES */
+  basic_string& replace(iterator __first, iterator __last,
+                        const _CharT* __f, const _CharT* __l);
+#endif /* __STL_MEMBER_TEMPLATES */
 
 private:                        // Helper functions for replace.
+
+#ifdef __STL_MEMBER_TEMPLATES
 
   template <class _Integer>
   basic_string& _M_replace_dispatch(iterator __first, iterator __last,
@@ -842,6 +917,8 @@ private:                        // Helper functions for replace.
   basic_string& replace(iterator __first, iterator __last,
                         _ForwardIter __f, _ForwardIter __l, 
                         forward_iterator_tag);
+
+#endif /* __STL_MEMBER_TEMPLATES */
 
 public:                         // Other modifier member functions.
 
@@ -999,8 +1076,7 @@ public:                         // Compare
                       __s, __s + __n2);
   }
 
-private:                        // Helper functions for compare.
-  
+public:                        // Helper function for compare.
   static int _M_compare(const _CharT* __f1, const _CharT* __l1,
                         const _CharT* __f2, const _CharT* __l2) {
     const ptrdiff_t __n1 = __l1 - __f1;
@@ -1008,13 +1084,6 @@ private:                        // Helper functions for compare.
     const int cmp = _Traits::compare(__f1, __f2, min(__n1, __n2));
     return cmp != 0 ? cmp : (__n1 < __n2 ? -1 : (__n1 > __n2 ? 1 : 0));
   }
-
-  friend bool operator< __STL_NULL_TMPL_ARGS (const basic_string&,
-                                              const basic_string&);
-  friend bool operator< __STL_NULL_TMPL_ARGS (const _CharT*,
-                                              const basic_string&);
-  friend bool operator< __STL_NULL_TMPL_ARGS (const basic_string&,
-                                              const _CharT*);
 };
 
 
@@ -1024,10 +1093,11 @@ private:                        // Helper functions for compare.
 
 template <class _CharT, class _Traits, class _Alloc> 
 const basic_string<_CharT,_Traits,_Alloc>::size_type 
-basic_string<_CharT,_Traits,_Alloc>::npos;
+basic_string<_CharT,_Traits,_Alloc>::npos 
+  = (basic_string<_CharT,_Traits,_Alloc>::size_type) -1;
 
 // Change the string's capacity so that it is large enough to hold
-//  at least __res_arg elements, plus the terminating _CharT().  Note that,
+//  at least __res_arg elements, plus the terminating null.  Note that,
 //  if __res_arg < capacity(), this member function may actually decrease
 //  the string's capacity.
 template <class _CharT, class _Traits, class _Alloc> 
@@ -1041,7 +1111,7 @@ void basic_string<_CharT,_Traits,_Alloc>::reserve(size_type __res_arg) {
 
   __STL_TRY {
     __new_finish = uninitialized_copy(_M_start, _M_finish, __new_start);
-    construct(__new_finish);
+    _M_construct_null(__new_finish);
   }
   __STL_UNWIND((destroy(__new_start, __new_finish), 
                 _M_deallocate(__new_start, __n)));
@@ -1063,7 +1133,7 @@ basic_string<_CharT,_Traits,_Alloc>::append(size_type __n, _CharT __c) {
   if (__n > 0) {
     uninitialized_fill_n(_M_finish + 1, __n - 1, __c);
     __STL_TRY {
-      construct(_M_finish + __n);
+      _M_construct_null(_M_finish + __n);
     }
     __STL_UNWIND(destroy(_M_finish + 1, _M_finish + __n));
     _Traits::assign(*_M_finish, __c);
@@ -1071,6 +1141,8 @@ basic_string<_CharT,_Traits,_Alloc>::append(size_type __n, _CharT __c) {
   }
   return *this;
 }
+
+#ifdef __STL_MEMBER_TEMPLATES
 
 template <class _Tp, class _Traits, class _Alloc> 
 template <class _InputIterator>
@@ -1091,8 +1163,8 @@ basic_string<_Tp, _Traits, _Alloc>::append(_ForwardIter __first,
                                            forward_iterator_tag) {
   if (__first != __last) {
     const size_type __old_size = size();
-    typename iterator_traits<_ForwardIter>::difference_type __n 
-      = distance(__first, __last);
+    difference_type __n = 0;
+    distance(__first, __last, __n);
     if (__n > max_size() || __old_size > max_size() - __n)
       _M_throw_length_error();
     if (__old_size + __n > capacity()) {
@@ -1103,7 +1175,7 @@ basic_string<_Tp, _Traits, _Alloc>::append(_ForwardIter __first,
       __STL_TRY {
         __new_finish = uninitialized_copy(_M_start, _M_finish, __new_start);
         __new_finish = uninitialized_copy(__first, __last, __new_finish);
-        construct(__new_finish);
+        _M_construct_null(__new_finish);
       }
       __STL_UNWIND((destroy(__new_start,__new_finish),
                     _M_deallocate(__new_start,__len)));
@@ -1118,7 +1190,7 @@ basic_string<_Tp, _Traits, _Alloc>::append(_ForwardIter __first,
       ++__f1;
       uninitialized_copy(__f1, __last, _M_finish + 1);
       __STL_TRY {
-        construct(_M_finish + __n);
+        _M_construct_null(_M_finish + __n);
       }
       __STL_UNWIND(destroy(_M_finish + 1, _M_finish + __n));
       _Traits::assign(*_M_finish, *__first);
@@ -1127,6 +1199,52 @@ basic_string<_Tp, _Traits, _Alloc>::append(_ForwardIter __first,
   }
   return *this;  
 }
+
+#else /* __STL_MEMBER_TEMPLATES */
+
+template <class _Tp, class _Traits, class _Alloc> 
+basic_string<_Tp, _Traits, _Alloc>& 
+basic_string<_Tp, _Traits, _Alloc>::append(const _Tp* __first,
+                                           const _Tp* __last)
+{
+  if (__first != __last) {
+    const size_type __old_size = size();
+    ptrdiff_t __n = __last - __first;
+    if (__n > max_size() || __old_size > max_size() - __n)
+      _M_throw_length_error();
+    if (__old_size + __n > capacity()) {
+      const size_type __len = __old_size + max(__old_size, (size_t) __n) + 1;
+      pointer __new_start = _M_allocate(__len);
+      pointer __new_finish = __new_start;
+      __STL_TRY {
+        __new_finish = uninitialized_copy(_M_start, _M_finish, __new_start);
+        __new_finish = uninitialized_copy(__first, __last, __new_finish);
+        _M_construct_null(__new_finish);
+      }
+      __STL_UNWIND((destroy(__new_start,__new_finish),
+                    _M_deallocate(__new_start,__len)));
+      destroy(_M_start, _M_finish + 1);
+      _M_deallocate_block();
+      _M_start = __new_start;
+      _M_finish = __new_finish;
+      _M_end_of_storage = __new_start + __len; 
+    }
+    else {
+      const _Tp* __f1 = __first;
+      ++__f1;
+      uninitialized_copy(__f1, __last, _M_finish + 1);
+      __STL_TRY {
+        _M_construct_null(_M_finish + __n);
+      }
+      __STL_UNWIND(destroy(_M_finish + 1, _M_finish + __n));
+      _Traits::assign(*_M_finish, *__first);
+      _M_finish += __n;
+    }
+  }
+  return *this;  
+}
+
+#endif /* __STL_MEMBER_TEMPLATES */
 
 template <class _CharT, class _Traits, class _Alloc> 
 basic_string<_CharT,_Traits,_Alloc>& 
@@ -1141,6 +1259,8 @@ basic_string<_CharT,_Traits,_Alloc>::assign(size_type __n, _CharT __c) {
   }
   return *this;
 }
+
+#ifdef __STL_MEMBER_TEMPLATES
 
 template <class _CharT, class _Traits, class _Alloc> 
 template <class _InputIter>
@@ -1159,6 +1279,8 @@ basic_string<_CharT,_Traits,_Alloc>& basic_string<_CharT,_Traits,_Alloc>
     append(__f, __l);
   return *this;
 }
+
+#endif /* __STL_MEMBER_TEMPLATES */
 
 template <class _CharT, class _Traits, class _Alloc> 
 basic_string<_CharT,_Traits,_Alloc>& 
@@ -1185,7 +1307,7 @@ basic_string<_CharT,_Traits,_Alloc>
 {
   iterator __new_pos = __p;
   if (_M_finish + 1 < _M_end_of_storage) {
-    construct(_M_finish + 1);
+    _M_construct_null(_M_finish + 1);
     _Traits::move(__p + 1, __p, _M_finish - __p);
     _Traits::assign(*__p, __c);
     ++_M_finish;
@@ -1201,7 +1323,7 @@ basic_string<_CharT,_Traits,_Alloc>
       construct(__new_pos, __c);
       __new_finish = __new_pos + 1;
       __new_finish = uninitialized_copy(__p, _M_finish, __new_finish);
-      construct(__new_finish);
+      _M_construct_null(__new_finish);
     }
     __STL_UNWIND((destroy(__new_start,__new_finish), 
                   _M_deallocate(__new_start,__len)));
@@ -1253,7 +1375,7 @@ void basic_string<_CharT,_Traits,_Alloc>
         __new_finish = uninitialized_fill_n(__new_finish, __n, __c);
         __new_finish = uninitialized_copy(__position, _M_finish,
                                           __new_finish);
-        construct(__new_finish);
+        _M_construct_null(__new_finish);
       }
       __STL_UNWIND((destroy(__new_start,__new_finish),
                     _M_deallocate(__new_start,__len)));
@@ -1265,6 +1387,8 @@ void basic_string<_CharT,_Traits,_Alloc>
     }
   }
 }
+
+#ifdef __STL_MEMBER_TEMPLATES
 
 template <class _Tp, class _Traits, class _Alloc>
 template <class _InputIter>
@@ -1283,12 +1407,13 @@ template <class _CharT, class _Traits, class _Alloc>
 template <class _ForwardIter>
 void 
 basic_string<_CharT,_Traits,_Alloc>::insert(iterator __position,
-                                           _ForwardIter __first, 
-                                           _ForwardIter __last,
-                                           forward_iterator_tag)
+                                            _ForwardIter __first, 
+                                            _ForwardIter __last,
+                                            forward_iterator_tag)
 {
   if (__first != __last) {
-    const difference_type __n = distance(__first, __last);
+    difference_type __n = 0;
+    distance(__first, __last, __n);
     if (_M_end_of_storage - _M_finish >= __n + 1) {
       const difference_type __elems_after = _M_finish - __position;
       iterator __old_finish = _M_finish;
@@ -1325,7 +1450,7 @@ basic_string<_CharT,_Traits,_Alloc>::insert(iterator __position,
         __new_finish = uninitialized_copy(__first, __last, __new_finish);
         __new_finish
           = uninitialized_copy(__position, _M_finish, __new_finish);
-        construct(__new_finish);
+        _M_construct_null(__new_finish);
       }
       __STL_UNWIND((destroy(__new_start,__new_finish),
                     _M_deallocate(__new_start,__len)));
@@ -1337,6 +1462,67 @@ basic_string<_CharT,_Traits,_Alloc>::insert(iterator __position,
     }
   }
 }
+
+#else /* __STL_MEMBER_TEMPLATES */
+
+template <class _CharT, class _Traits, class _Alloc>
+void 
+basic_string<_CharT,_Traits,_Alloc>::insert(iterator __position,
+                                            const _CharT* __first, 
+                                            const _CharT* __last)
+{
+  if (__first != __last) {
+    const ptrdiff_t __n = __last - __first;
+    if (_M_end_of_storage - _M_finish >= __n + 1) {
+      const ptrdiff_t __elems_after = _M_finish - __position;
+      iterator __old_finish = _M_finish;
+      if (__elems_after >= __n) {
+        uninitialized_copy((_M_finish - __n) + 1, _M_finish + 1,
+                           _M_finish + 1);
+        _M_finish += __n;
+        _Traits::move(__position + __n,
+                      __position, (__elems_after - __n) + 1);
+        _M_copy(__first, __last, __position);
+      }
+      else {
+        const _CharT* __mid = __first;
+        advance(__mid, __elems_after + 1);
+        uninitialized_copy(__mid, __last, _M_finish + 1);
+        _M_finish += __n - __elems_after;
+        __STL_TRY {
+          uninitialized_copy(__position, __old_finish + 1, _M_finish);
+          _M_finish += __elems_after;
+        }
+        __STL_UNWIND((destroy(__old_finish + 1, _M_finish), 
+                      _M_finish = __old_finish));
+        _M_copy(__first, __mid, __position);
+      }
+    }
+    else {
+      const size_type __old_size = size();        
+      const size_type __len
+        = __old_size + max(__old_size, static_cast<size_type>(__n)) + 1;
+      pointer __new_start = _M_allocate(__len);
+      pointer __new_finish = __new_start;
+      __STL_TRY {
+        __new_finish = uninitialized_copy(_M_start, __position, __new_start);
+        __new_finish = uninitialized_copy(__first, __last, __new_finish);
+        __new_finish
+          = uninitialized_copy(__position, _M_finish, __new_finish);
+        _M_construct_null(__new_finish);
+      }
+      __STL_UNWIND((destroy(__new_start,__new_finish),
+                    _M_deallocate(__new_start,__len)));
+      destroy(_M_start, _M_finish + 1);
+      _M_deallocate_block();
+      _M_start = __new_start;
+      _M_finish = __new_finish;
+      _M_end_of_storage = __new_start + __len; 
+    }
+  }
+}
+
+#endif /* __STL_MEMBER_TEMPLATES */
 
 template <class _CharT, class _Traits, class _Alloc>
 basic_string<_CharT,_Traits,_Alloc>&
@@ -1354,6 +1540,8 @@ basic_string<_CharT,_Traits,_Alloc>
   }
   return *this;
 }
+
+#ifdef __STL_MEMBER_TEMPLATES
 
 template <class _CharT, class _Traits, class _Alloc>
 template <class _InputIter>
@@ -1380,21 +1568,45 @@ basic_string<_CharT,_Traits,_Alloc>
             _ForwardIter __f, _ForwardIter __l,
             forward_iterator_tag) 
 {
-    const typename iterator_traits<_ForwardIter>::difference_type __n =
-      distance(__f, __l);
-    const difference_type __len = __last - __first;
-    if (__len >= __n) {
-      _M_copy(__f, __l, __first);
-      erase(__first + __n, __last);
-    }
-    else {
-      _ForwardIter m = __f;
-      advance(m, __len);
-      _M_copy(__f, m, __first);
-      insert(__last, m, __l);
-    }
-    return *this;
+  difference_type __n = 0;
+  distance(__f, __l, __n);
+  const difference_type __len = __last - __first;
+  if (__len >= __n) {
+    _M_copy(__f, __l, __first);
+    erase(__first + __n, __last);
+  }
+  else {
+    _ForwardIter __m = __f;
+    advance(__m, __len);
+    _M_copy(__f, __m, __first);
+    insert(__last, __m, __l);
+  }
+  return *this;
 }
+
+#else /* __STL_MEMBER_TEMPLATES */
+
+template <class _CharT, class _Traits, class _Alloc>
+basic_string<_CharT,_Traits,_Alloc>&
+basic_string<_CharT,_Traits,_Alloc>
+  ::replace(iterator __first, iterator __last,
+            const _CharT* __f, const _CharT* __l)
+{
+  const ptrdiff_t         __n = __l - __f;
+  const difference_type __len = __last - __first;
+  if (__len >= __n) {
+    _M_copy(__f, __l, __first);
+    erase(__first + __n, __last);
+  }
+  else {
+    const _CharT* __m = __f + __len;
+    _M_copy(__f, __m, __first);
+    insert(__last, __m, __l);
+  }
+  return *this;
+}
+
+#endif /* __STL_MEMBER_TEMPLATES */
 
 template <class _CharT, class _Traits, class _Alloc>
 basic_string<_CharT,_Traits,_Alloc>::size_type
@@ -1472,9 +1684,9 @@ basic_string<_CharT,_Traits,_Alloc>
   if (__pos >= size())
     return npos;
   else {
-    const const_iterator __result = std::find_first_of(begin() + __pos, end(),
-                                                     __s, __s + __n,
-                                                     _Eq_traits<_Traits>());
+    const_iterator __result = __STD::find_first_of(begin() + __pos, end(),
+                                                   __s, __s + __n,
+                                                   _Eq_traits<_Traits>());
     return __result != _M_finish ? __result - begin() : npos;
   }
 }
@@ -1492,9 +1704,9 @@ basic_string<_CharT,_Traits,_Alloc>
   else {
     const const_iterator __last = _M_start + min(__len - 1, __pos) + 1;
     const const_reverse_iterator __rresult =
-      std::find_first_of(const_reverse_iterator(__last), rend(),
-                         __s, __s + __n,
-                         _Eq_traits<_Traits>());
+      __STD::find_first_of(const_reverse_iterator(__last), rend(),
+                           __s, __s + __n,
+                           _Eq_traits<_Traits>());
     return __rresult != rend() ? (__rresult.base() - 1) - _M_start : npos;
   }
 }
@@ -1578,7 +1790,8 @@ operator+(const basic_string<_CharT,_Traits,_Alloc>& __x,
 {
   typedef basic_string<_CharT,_Traits,_Alloc> _Str;
   typedef typename _Str::_Reserve_t _Reserve_t;
-  _Str __result(_Reserve_t(), __x.size() + __y.size(), __x.get_allocator());
+  _Reserve_t __reserve;
+  _Str __result(__reserve, __x.size() + __y.size(), __x.get_allocator());
   __result.append(__x);
   __result.append(__y);
   return __result;
@@ -1590,8 +1803,9 @@ operator+(const _CharT* __s,
           const basic_string<_CharT,_Traits,_Alloc>& __y) {
   typedef basic_string<_CharT,_Traits,_Alloc> _Str;
   typedef typename _Str::_Reserve_t _Reserve_t;
+  _Reserve_t __reserve;
   const size_t __n = _Traits::length(__s);
-  _Str __result(_Reserve_t(), __n + __y.size());
+  _Str __result(__reserve, __n + __y.size());
   __result.append(__s, __s + __n);
   __result.append(__y);
   return __result;
@@ -1603,7 +1817,8 @@ operator+(_CharT __c,
           const basic_string<_CharT,_Traits,_Alloc>& __y) {
   typedef basic_string<_CharT,_Traits,_Alloc> _Str;
   typedef typename _Str::_Reserve_t _Reserve_t;
-  _Str __result(_Reserve_t(), 1 + __y.size());
+  _Reserve_t __reserve;
+  _Str __result(__reserve, 1 + __y.size());
   __result.push_back(__c);
   __result.append(__y);
   return __result;
@@ -1615,8 +1830,9 @@ operator+(const basic_string<_CharT,_Traits,_Alloc>& __x,
           const _CharT* __s) {
   typedef basic_string<_CharT,_Traits,_Alloc> _Str;
   typedef typename _Str::_Reserve_t _Reserve_t;
+  _Reserve_t __reserve;
   const size_t __n = _Traits::length(__s);
-  _Str __result(_Reserve_t(), __x.size() + __n, __x.get_allocator());
+  _Str __result(__reserve, __x.size() + __n, __x.get_allocator());
   __result.append(__x);
   __result.append(__s, __s + __n);
   return __result;
@@ -1628,7 +1844,8 @@ operator+(const basic_string<_CharT,_Traits,_Alloc>& __x,
           const _CharT __c) {
   typedef basic_string<_CharT,_Traits,_Alloc> _Str;
   typedef typename _Str::_Reserve_t _Reserve_t;
-  _Str __result(_Reserve_t(), __x.size() + 1, __x.get_allocator());
+  _Reserve_t __reserve;
+  _Str __result(__reserve, __x.size() + 1, __x.get_allocator());
   __result.append(__x);
   __result.push_back(__c);
   return __result;
@@ -1792,119 +2009,317 @@ inline void swap(basic_string<_CharT,_Traits,_Alloc>& __x,
 
 #endif /* __STL_FUNCTION_TMPL_PARTIAL_ORDER */
 
-// I/O.  (Using istream and ostream only, as opposed to the 
-// basic_istream and basic_ostream templates.  The result is that
-// these functions really don't make all that much sense except
-// for basic_string<char>.)
+// I/O.  
 
-inline void __sgi_string_fill(ostream& __o, size_t __n)
+__STL_END_NAMESPACE
+#ifdef __STL_USE_NEW_IOSTREAMS 
+#include <iosfwd>
+#else /* __STL_USE_NEW_IOSTREAMS */
+#include <iostream.h>
+#endif /* __STL_USE_NEW_IOSTREAMS */
+__STL_BEGIN_NAMESPACE
+
+#ifdef __STL_USE_NEW_IOSTREAMS
+
+template <class _CharT, class _Traits>
+inline bool
+__sgi_string_fill(basic_ostream<_CharT, _Traits>& __os,
+                  basic_streambuf<_CharT, _Traits>* __buf,
+                  size_t __n)
 {
-  char __f = __o.fill();
+  _CharT __f = __os.fill();
+  size_t __i;
+  bool __ok = true;
+
+  for (__i = 0; __i < __n; __i++)
+    __ok == __ok && !_Traits::eq_int_type(__buf->sputc(__f), _Traits::eof());
+  return __ok;
+}
+
+template <class _CharT, class _Traits, class _Alloc>
+basic_ostream<_CharT, _Traits>&
+operator<<(basic_ostream<_CharT, _Traits>& __os, 
+           const basic_string<_CharT,_Traits,_Alloc>& __s)
+{
+  typename basic_ostream<_CharT, _Traits>::sentry __sentry(__os);
+  bool __ok = false;
+
+  if (__sentry) {
+    __ok = true;
+    size_t __n = __s.size();
+    size_t __pad_len = 0;
+    const bool __left = bool(__os.flags() & ios::left);
+    const size_t __w = __os.width(0);
+    basic_streambuf<_CharT, _Traits>* __buf = __os.rdbuf();
+
+    if (__w > 0) {
+      __n = min(__w, __n);
+      __pad_len = __w - __n;
+    }
+    
+    if (!__left)
+      __ok = __sgi_string_fill(__os, __buf, __pad_len);    
+
+    __ok = __ok && __buf->sputn(__s.data(), __n) == __n;
+
+    if (__left)
+      __ok = __ok && __sgi_string_fill(__os, __buf, __pad_len);
+  }
+
+  if (!__ok)
+    __os.setstate(ios_base::failbit);
+
+  return __os;
+}
+
+template <class _CharT, class _Traits, class _Alloc>
+basic_istream<_CharT, _Traits>& 
+operator>>(basic_istream<_CharT, _Traits>& __is,
+           basic_string<_CharT,_Traits,_Alloc>& __s)
+{
+  typename basic_istream<_CharT, _Traits>::sentry __sentry(__is);
+
+  if (__sentry) {
+    basic_streambuf<_CharT, _Traits>* __buf = __is.rdbuf();
+    const ctype<_CharT>& __ctype = use_facet<ctype<_CharT> >(__is.getloc());
+
+    __s.clear();
+    size_t __n = __is.width(0);
+    if (__n == 0)
+      __n = static_cast<size_t>(-1);
+    else
+      __s.reserve(__n);
+    
+
+    while (__n-- > 0) {
+      typename _Traits::int_type __c1 = __buf->sbumpc();
+      if (_Traits::eq_int_type(__c1, _Traits::eof())) {
+        __is.setstate(ios_base::eofbit);
+        break;
+      }
+      else {
+        _CharT __c = _Traits::to_char_type(__c1);
+
+        if (__ctype.is(ctype_base::space, __c)) {
+          if (_Traits::eq_int_type(__buf->sputbackc(__c), _Traits::eof()))
+            __is.setstate(ios_base::failbit);
+          break;
+        }
+        else
+          __s.push_back(__c);
+      }
+    }
+    
+    // If we have read no characters, then set failbit.
+    if (__s.size() == 0)
+      __is.setstate(ios_base::failbit);
+  }
+  else
+    __is.setstate(ios_base::failbit);
+
+  return __is;
+}
+
+template <class _CharT, class _Traits, class _Alloc>    
+basic_istream<_CharT, _Traits>& 
+getline(istream& __is,
+        basic_string<_CharT,_Traits,_Alloc>& __s,
+        _CharT __delim)
+{
+  size_t __nread = 0;
+  typename basic_istream<_CharT, _Traits>::sentry __sentry(__is, true);
+  if (__sentry) {
+    basic_streambuf<_CharT, _Traits>* __buf = __is.rdbuf();
+
+    int __c1;
+    while (__nread < __s.max_size()) {
+      int __c1 = __buf->sbumpc();
+      if (_Traits::eq_int_type(__c1, _Traits::eof())) {
+        __is.setstate(ios_base::eofbit);
+        break;
+      }
+      else {
+        ++__nread;
+        _CharT __c = _Traits::to_char_type(__c1);
+        if (!_Traits::eq(__c, __delim)) 
+          __s.push_back(__c);
+        else
+          break;              // Character is extracted but not appended.
+      }
+    }
+  }
+  if (__nread == 0 || __nread >= __s.max_size())
+    __is.setstate(ios_base::failbit);
+
+  return __is;
+}
+
+template <class _CharT, class _Traits, class _Alloc>    
+inline basic_istream<_CharT, _Traits>& 
+getline(basic_istream<_CharT, _Traits>& __is,
+        basic_string<_CharT,_Traits,_Alloc>& __s)
+{
+  return getline(__is, __s, '\n');
+}
+
+#else /* __STL_USE_NEW_IOSTREAMS */
+
+inline void __sgi_string_fill(ostream& __os, streambuf* __buf, size_t __n)
+{
+  char __f = __os.fill();
   size_t __i;
 
-  for (__i = 0; __i < __n; __i++) __o.put(__f);
+  for (__i = 0; __i < __n; __i++) __buf->sputc(__f);
 }
 
 template <class _CharT, class _Traits, class _Alloc>
 ostream& operator<<(ostream& __os, 
                     const basic_string<_CharT,_Traits,_Alloc>& __s)
 {
-  size_t __n = __s.size();
-  size_t __pad_len = 0;
-  const bool __left = bool(__os.flags() & ios::left);
-  const size_t __w = __os.width();
+  streambuf* __buf = __os.rdbuf();
+  if (__buf) {
+    size_t __n = __s.size();
+    size_t __pad_len = 0;
+    const bool __left = bool(__os.flags() & ios::left);
+    const size_t __w = __os.width();
 
-  if (__w > 0) {
-    __n = min(__w, __n);
-    __pad_len = __w - __n;
-  }
+    if (__w > 0) {
+      __n = min(__w, __n);
+      __pad_len = __w - __n;
+    }
     
-  if (!__left)
-    __sgi_string_fill(__os, __pad_len);
+    if (!__left)
+      __sgi_string_fill(__os, __buf, __pad_len);
   
-  const size_t __nwritten = __os.rdbuf()->sputn(__s.data(), __n);
+    const size_t __nwritten = __buf->sputn(__s.data(), __n);
 
-  if (__left)
-    __sgi_string_fill(__os, __pad_len);
+    if (__left)
+      __sgi_string_fill(__os, __buf, __pad_len);
 
-  if (__nwritten != __n)
-    __os.clear(__os.rdstate() | ios::failbit);
+    if (__nwritten != __n)
+      __os.clear(__os.rdstate() | ios::failbit);
 
-  __os.width(0);
+    __os.width(0);
+  }
+  else
+    __os.clear(__os.rdstate() | ios::badbit);
+
   return __os;
 }
 
 template <class _CharT, class _Traits, class _Alloc>
 istream& operator>>(istream& __is, basic_string<_CharT,_Traits,_Alloc>& __s)
 {
+  if (!__is)
+    return __is;
 
-  if (__is.flags() & ios::skipws) {
-    _CharT __c;
-    do 
-      __is.get(__c);
-    while (__is && isspace(__c));
-    if (__is)
-      __is.putback(__c);
-  }
-
-  // If we arrive at end of file (or fail for some other reason) while
-  // still discarding whitespace, then we don't try to read the string.
-  if (__is) {
-    __s.clear();
-
-    size_t __n = __is.width();
-    if (__n == 0)
-      __n = static_cast<size_t>(-1);
-    else
-      __s.reserve(__n);
-
-    while (__n-- > 0) {
+  streambuf* __buf = __is.rdbuf();
+  if (__buf) {
+    if (__is.flags() & ios::skipws) {
       _CharT __c;
-      __is.get(__c);
-      if (!__is) 
-        break;
-      else if (isspace(__c)) {
-        __is.putback(__c);
-        break;
+      do {
+        int __c1 = __buf->sbumpc();
+        if (__c1 == EOF) {
+          __is.clear(__is.rdstate() | ios::eofbit | ios::failbit);
+          break;
+        }
+        else
+          __c = _Traits::to_char_type(__c1);
       }
-      else
-        __s.push_back(__c);
-    }
-    
-    // If we have successfully read some characters, and then arrive
-    // at end of file, the stream should still be marked good.  Note
-    // that we only clear errors that are due to EOF, not other kinds 
-    // of errors.
-    if (__s.size() != 0 && __is.eof())
-      __is.clear((~ios::eofbit & ~ios::failbit) & __is.rdstate());
-  }
+      while (isspace((unsigned char) __c));
 
-  __is.width(0);
+      if (__buf->sputbackc(__c) == EOF)
+        __is.clear(__is.rdstate() | ios::failbit);
+    }
+
+    // If we arrive at end of file (or fail for some other reason) while
+    // still discarding whitespace, then we don't try to read the string.
+    if (__is) {
+      __s.clear();
+
+      size_t __n = __is.width();
+      if (__n == 0)
+        __n = static_cast<size_t>(-1);
+      else
+        __s.reserve(__n);
+
+      while (__n-- > 0) {
+        int __c1 = __buf->sbumpc();
+        if (__c1 == EOF) {
+          __is.clear(__is.rdstate() | ios::eofbit);
+          break;
+        }
+        else {
+          _CharT __c = _Traits::to_char_type(__c1);
+
+          if (isspace((unsigned char) __c)) {
+            if (__buf->sputbackc(__c) == EOF)
+              __is.clear(__is.rdstate() | ios::failbit);
+            break;
+          }
+          else
+            __s.push_back(__c);
+        }
+      }
+    
+      // If we have read no characters, then set failbit.
+      if (__s.size() == 0)
+        __is.clear(__is.rdstate() | ios::failbit);
+    }
+
+    __is.width(0);
+  }
+  else                          // We have no streambuf.
+    __is.clear(__is.rdstate() | ios::badbit);
+
   return __is;
 }
 
 template <class _CharT, class _Traits, class _Alloc>    
 istream& getline(istream& __is,
                  basic_string<_CharT,_Traits,_Alloc>& __s,
-                 _CharT __delim = '\n') {
-  size_t __nread = 0;
-  if (__is) {
-    __s.clear();
+                 _CharT __delim)
+{
+  streambuf* __buf = __is.rdbuf();
+  if (__buf) {
+    size_t __nread = 0;
+    if (__is) {
+      __s.clear();
 
-    _CharT __c;
-    while (__nread < __s.max_size() && __is.get(__c)) {
-      ++__nread;
-      if (!_Traits::eq(__c, __delim)) 
-        __s.push_back(__c);
-      else
-        break;                  // Character is extracted but not appended.
+      while (__nread < __s.max_size()) {
+        int __c1 = __buf->sbumpc();
+        if (__c1 == EOF) {
+          __is.clear(__is.rdstate() | ios::eofbit);
+          break;
+        }
+        else {
+          ++__nread;
+          _CharT __c = _Traits::to_char_type(__c1);
+          if (!_Traits::eq(__c, __delim)) 
+            __s.push_back(__c);
+          else
+            break;              // Character is extracted but not appended.
+        }
+      }
     }
-  }
 
-  if (__nread == 0 || __nread >= __s.max_size())
-    __is.clear(__is.rdstate() | ios::failbit);
+    if (__nread == 0 || __nread >= __s.max_size())
+      __is.clear(__is.rdstate() | ios::failbit);
+  }
+  else
+    __is.clear(__is.rdstate() | ios::badbit);
+
   return __is;
 }
+
+template <class _CharT, class _Traits, class _Alloc>    
+inline istream& 
+getline(istream& __is, basic_string<_CharT,_Traits,_Alloc>& __s)
+{
+  return getline(__is, __s, '\n');
+}
+
+#endif /* __STL_USE_NEW_IOSTREAMS */
 
 template <class _CharT, class _Traits, class _Alloc>
 void _S_string_copy(const basic_string<_CharT,_Traits,_Alloc>& __s,
@@ -1912,18 +2327,17 @@ void _S_string_copy(const basic_string<_CharT,_Traits,_Alloc>& __s,
                     size_t __n)
 {
   if (__n > 0) {
-    const size_t __n = min(__n - 1, __s.size());
+    __n = min(__n - 1, __s.size());
     copy(__s.begin(), __s.begin() + __n, __buf);
-    __buf[__n] = _CharT();
+    _Traits::assign(__buf[__n],
+                    basic_string<_CharT,_Traits,_Alloc>::_M_null());
   }
 }
 
+static const char* __get_c_string(const string& __s) { return __s.c_str(); }
+
 // ------------------------------------------------------------
 // Typedefs
-
-typedef basic_string<char> string;
-typedef basic_string<wchar_t> wstring;
-
 
 #if defined(__sgi) && !defined(__GNUC__) && (_MIPS_SIM != _MIPS_SIM_ABI32)
 #pragma reset woff 1174
@@ -1937,17 +2351,36 @@ __STL_END_NAMESPACE
 __STL_BEGIN_NAMESPACE
 
 template <class _CharT, class _Traits, class _Alloc>
+size_t __stl_string_hash(const basic_string<_CharT,_Traits,_Alloc>& __s) {
+  unsigned long __h = 0;
+  for (basic_string<_CharT,_Traits,_Alloc>::const_iterator __i = __s.begin();
+       __i != __s.end();
+       ++__i)
+    __h = 5*__h + *__i;
+  return size_t(__h);
+}
+
+#ifdef __STL_CLASS_PARTIAL_SPECIALIZATION
+
+template <class _CharT, class _Traits, class _Alloc>
 struct hash<basic_string<_CharT,_Traits,_Alloc> > {
-  size_t operator()(const basic_string<_CharT,_Traits,_Alloc>& __s) const {
-    unsigned long __h = 0; 
-    for (basic_string<_CharT,_Traits,_Alloc>::const_iterator __i
-           = __s.begin();
-         __i != __s.end();
-         ++__i)
-      __h = 5*__h + *__i;
-    return size_t(__h);
-  }
+  size_t operator()(const basic_string<_CharT,_Traits,_Alloc>& __s) const
+    { return __stl_string_hash(__s); }
 };
+
+#else
+
+__STL_TEMPLATE_NULL struct hash<string> {
+  size_t operator()(const string& __s) const
+    { return __stl_string_hash(__s); }
+};
+
+__STL_TEMPLATE_NULL struct hash<wstring> {
+  size_t operator()(const wstring& __s) const
+    { return __stl_string_hash(__s); }
+};
+
+#endif /* __STL_CLASS_PARTIAL_SPECIALIZATION */
 
 __STL_END_NAMESPACE
 

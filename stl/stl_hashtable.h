@@ -145,7 +145,8 @@ struct _Hashtable_const_iterator {
 };
 
 // Note: assumes long is at least 32 bits.
-static const int __stl_num_primes = 28;
+enum { __stl_num_primes = 28 };
+
 static const unsigned long __stl_prime_list[__stl_num_primes] =
 {
   53ul,         97ul,         193ul,       389ul,       769ul,
@@ -664,8 +665,8 @@ distance_type(const _Hashtable_const_iterator<_Val,_Key,_HF,_ExK,_EqK,_All>&)
 #endif /* __STL_CLASS_PARTIAL_SPECIALIZATION */
 
 template <class _Val, class _Key, class _HF, class _Ex, class _Eq, class _All>
-inline bool operator==(const hashtable<_Val,_Key,_HF,_Ex,_Eq,_All>& __ht1,
-                       const hashtable<_Val,_Key,_HF,_Ex,_Eq,_All>& __ht2)
+bool operator==(const hashtable<_Val,_Key,_HF,_Ex,_Eq,_All>& __ht1,
+                const hashtable<_Val,_Key,_HF,_Ex,_Eq,_All>& __ht2)
 {
   typedef typename hashtable<_Val,_Key,_HF,_Ex,_Eq,_All>::_Node _Node;
   if (__ht1._M_buckets.size() != __ht2._M_buckets.size())
@@ -683,6 +684,12 @@ inline bool operator==(const hashtable<_Val,_Key,_HF,_Ex,_Eq,_All>& __ht1,
 }  
 
 #ifdef __STL_FUNCTION_TMPL_PARTIAL_ORDER
+
+template <class _Val, class _Key, class _HF, class _Ex, class _Eq, class _All>
+inline bool operator!=(const hashtable<_Val,_Key,_HF,_Ex,_Eq,_All>& __ht1,
+                       const hashtable<_Val,_Key,_HF,_Ex,_Eq,_All>& __ht2) {
+  return !(__ht1 == __ht2);
+}
 
 template <class _Val, class _Key, class _HF, class _Extract, class _EqKey, 
           class _All>
@@ -845,7 +852,8 @@ hashtable<_Val,_Key,_HF,_Ex,_Eq,_All>::erase(const key_type& __key)
 template <class _Val, class _Key, class _HF, class _Ex, class _Eq, class _All>
 void hashtable<_Val,_Key,_HF,_Ex,_Eq,_All>::erase(const iterator& __it)
 {
-  if (_Node* const __p = __it._M_cur) {
+  _Node* __p = __it._M_cur;
+  if (__p) {
     const size_type __n = _M_bkt_num(__p->_M_val);
     _Node* __cur = _M_buckets[__n];
 
@@ -1013,7 +1021,8 @@ void hashtable<_Val,_Key,_HF,_Ex,_Eq,_All>
   _M_buckets.insert(_M_buckets.end(), __ht._M_buckets.size(), (_Node*) 0);
   __STL_TRY {
     for (size_type __i = 0; __i < __ht._M_buckets.size(); ++__i) {
-      if (const _Node* __cur = __ht._M_buckets[__i]) {
+      const _Node* __cur = __ht._M_buckets[__i];
+      if (__cur) {
         _Node* __copy = _M_new_node(__cur->_M_val);
         _M_buckets[__i] = __copy;
 

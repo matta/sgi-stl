@@ -427,10 +427,6 @@ public:
   void swap(slist& __x) { __STD::swap(_M_head._M_next, __x._M_head._M_next); }
 
 public:
-  friend bool operator== __STL_NULL_TMPL_ARGS (const slist<_Tp,_Alloc>& _SL1,
-                                               const slist<_Tp,_Alloc>& _SL2);
-
-public:
 
   reference front() { return ((_Node*) _M_head._M_next)->_M_data; }
   const_reference front() const 
@@ -745,25 +741,53 @@ template <class _Tp, class _Alloc>
 inline bool 
 operator==(const slist<_Tp,_Alloc>& _SL1, const slist<_Tp,_Alloc>& _SL2)
 {
-  typedef typename slist<_Tp,_Alloc>::_Node _Node;
-  _Node* __n1 = (_Node*) _SL1._M_head._M_next;
-  _Node* __n2 = (_Node*) _SL2._M_head._M_next;
-  while (__n1 && __n2 && __n1->_M_data == __n2->_M_data) {
-    __n1 = (_Node*) __n1->_M_next;
-    __n2 = (_Node*) __n2->_M_next;
+  typedef typename slist<_Tp,_Alloc>::const_iterator const_iterator;
+  const_iterator __end1 = _SL1.end();
+  const_iterator __end2 = _SL2.end();
+
+  const_iterator __i1 = _SL1.begin();
+  const_iterator __i2 = _SL2.begin();
+  while (__i1 != __end1 && __i2 != __end2 && *__i1 == *__i2) {
+    ++__i1;
+    ++__i2;
   }
-  return __n1 == 0 && __n2 == 0;
+  return __i1 == __end1 && __i2 == __end2;
 }
 
+
 template <class _Tp, class _Alloc>
-inline bool operator<(const slist<_Tp,_Alloc>& _SL1,
-                      const slist<_Tp,_Alloc>& _SL2)
+inline bool
+operator<(const slist<_Tp,_Alloc>& _SL1, const slist<_Tp,_Alloc>& _SL2)
 {
   return lexicographical_compare(_SL1.begin(), _SL1.end(), 
                                  _SL2.begin(), _SL2.end());
 }
 
 #ifdef __STL_FUNCTION_TMPL_PARTIAL_ORDER
+
+template <class _Tp, class _Alloc>
+inline bool 
+operator!=(const slist<_Tp,_Alloc>& _SL1, const slist<_Tp,_Alloc>& _SL2) {
+  return !(_SL1 == _SL2);
+}
+
+template <class _Tp, class _Alloc>
+inline bool 
+operator>(const slist<_Tp,_Alloc>& _SL1, const slist<_Tp,_Alloc>& _SL2) {
+  return _SL2 < _SL1;
+}
+
+template <class _Tp, class _Alloc>
+inline bool 
+operator<=(const slist<_Tp,_Alloc>& _SL1, const slist<_Tp,_Alloc>& _SL2) {
+  return !(_SL2 < _SL1);
+}
+
+template <class _Tp, class _Alloc>
+inline bool 
+operator>=(const slist<_Tp,_Alloc>& _SL1, const slist<_Tp,_Alloc>& _SL2) {
+  return !(_SL1 < _SL2);
+}
 
 template <class _Tp, class _Alloc>
 inline void swap(slist<_Tp,_Alloc>& __x, slist<_Tp,_Alloc>& __y) {

@@ -29,12 +29,15 @@
 
 #include <stl_config.h>
 #include <stl_relops.h>
-#include <stddef.h>       /* XXX should use <cstddef> */
-#if 0                     /* XXX define a flag for this */
-#include <iostream>
-#else
+#include <stddef.h>       
+
+#ifdef __STL_USE_NEW_IOSTREAMS 
+#include <iosfwd>
+#else /* __STL_USE_NEW_IOSTREAMS */
 #include <iostream.h>
-#endif
+#endif /* __STL_USE_NEW_IOSTREAMS */
+
+#include <stl_iterator_base.h>
 #include <stl_iterator.h>
 
 #endif /* __SGI_STL_ITERATOR */

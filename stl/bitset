@@ -38,7 +38,12 @@
 #include <stddef.h>     // for size_t
 #include <string>
 #include <stdexcept>    // for invalid_argument, out_of_range, overflow_error
+
+#ifdef __STL_USE_NEW_IOSTREAMS 
+#include <iostream>
+#else
 #include <iostream.h>   // for istream, ostream
+#endif
 
 #define __BITS_PER_WORDT(__wt) (CHAR_BIT*sizeof(__wt))
 #define __BITSET_WORDS(__n,__wt) \
@@ -225,16 +230,14 @@ void _Base_bitset<_Nw, _WordT>::_M_do_right_shift(size_t __shift)
 template<size_t _Nw, class _WordT>
 unsigned long _Base_bitset<_Nw, _WordT>::_M_do_to_ulong() const
 {
-  const overflow_error __overflow("bitset");
-
   if (sizeof(_WordT) >= sizeof(unsigned long)) {
     for (size_t __i = 1; __i < _Nw; ++__i) 
       if (_M_w[__i]) 
-        __STL_THROW(__overflow);
+        __STL_THROW(overflow_error("bitset"));
 
     const _WordT __mask = static_cast<_WordT>(static_cast<unsigned long>(-1));
     if (_M_w[0] & ~__mask) 
-      __STL_THROW(__overflow);
+      __STL_THROW(overflow_error("bitset"));
 
     return static_cast<unsigned long>(_M_w[0] & __mask);
   }
@@ -246,7 +249,7 @@ unsigned long _Base_bitset<_Nw, _WordT>::_M_do_to_ulong() const
     if (_Nw > __nwords) {
       for (size_t __i = __nwords; __i < _Nw; ++__i) 
         if (_M_w[__i]) 
-          __STL_THROW(__overflow);
+          __STL_THROW(overflow_error("bitset"));
     }
     else 
       __min_nwords = _Nw;
@@ -257,7 +260,7 @@ unsigned long _Base_bitset<_Nw, _WordT>::_M_do_to_ulong() const
 
     if (__part != 0 && __nwords <= _Nw && 
         (_M_w[__min_nwords - 1] >> ((sizeof(_WordT) - __part) * CHAR_BIT)) != 0)
-      __STL_THROW(__overflow);
+      __STL_THROW(overflow_error("bitset"));
 
     unsigned long __result = 0;
     for (size_t __i = 0; __i < __min_nwords; ++__i) {
@@ -352,6 +355,8 @@ _Base_bitset<_Nw, _WordT>::_M_do_find_next(size_t __prev,
 //
 // Base class: specialization for a single word.
 //
+
+#ifdef __STL_CLASS_PARTIAL_SPECIALIZATION
 
 template<class _WordT>
 struct _Base_bitset<1, _WordT> {
@@ -503,18 +508,21 @@ _Base_bitset<1, _WordT>::_M_do_find_next(size_t __prev,
 // word of type unsigned long.
 //
 
-template<>
+__STL_TEMPLATE_NULL
 inline unsigned long 
 _Base_bitset<1, unsigned long>::_M_do_to_ulong() const { return _M_w; }
 
-template<>
+__STL_TEMPLATE_NULL
 inline _Base_bitset<1, unsigned long>::_Base_bitset(unsigned long __val) {
   _M_w = __val;
 }
 
+#endif /* __STL_CLASS_PARTIAL_SPECIALIZATION */
 
 // ------------------------------------------------------------
 // Helper class to zero out the unused high-order bits in the highest word.
+
+#ifdef __STL_CLASS_PARTIAL_SPECIALIZATION
 
 template <class _WordT, size_t _Extrabits> struct _Sanitize {
   static void _M_do_sanitize(_WordT& __val)
@@ -524,6 +532,17 @@ template <class _WordT, size_t _Extrabits> struct _Sanitize {
 template <class _WordT> struct _Sanitize<_WordT, 0> {
   static void _M_do_sanitize(_WordT) {}
 };
+
+#else /* __STL_CLASS_PARTIAL_SPECIALIZATION */
+
+template <class _WordT, size_t _Extrabits> struct _Sanitize {
+  static void _M_do_sanitize(_WordT& __val) {
+    if (_Extrabits != 0)
+      __val &= ~((~static_cast<_WordT>(0)) << _Extrabits);
+  }
+};
+
+#endif /* __STL_CLASS_PARTIAL_SPECIALIZATION */
 
 // ------------------------------------------------------------
 // Class bitset.
@@ -538,6 +557,7 @@ private:
 
   // Import base's protected interface.  Necessary because of new template
   // name resolution rules.
+#ifdef __STL_HAS_NAMESPACES
   using _Base::_S_whichword;
   using _Base::_S_whichbyte;
   using _Base::_S_whichbit;
@@ -558,6 +578,7 @@ private:
   using _Base::_M_do_to_ulong;
   using _Base::_M_do_find_first;
   using _Base::_M_do_find_next;
+#endif /* __STL_HAS_NAMESPACES */
 
 private:
   void _M_do_sanitize() {
@@ -568,6 +589,9 @@ private:
 public:
 
   // bit reference:
+  class reference;
+  friend class reference;
+
   class reference {
     friend class bitset;
 
@@ -577,12 +601,12 @@ public:
     // left undefined
     reference();
 
+  public:
     reference( bitset& __b, size_t __pos ) {
       _M_wp = &__b._M_getword(__pos);
       _M_bpos = _S_whichbit(__pos);
     }
 
-  public:
     ~reference() {}
 
     // for b[i] = __x;
@@ -623,16 +647,38 @@ public:
   bitset(unsigned long __val) : 
     _Base_bitset<__BITSET_WORDS(_Nb,_WordT), _WordT>(__val) {}
 
+#ifdef __STL_MEMBER_TEMPLATES
   template<class _CharT, class _Traits, class _Alloc>
-  explicit bitset(const basic_string<_CharT,_Traits,_Alloc>& __s,
-                  size_t __pos = 0,
-                  size_t __n = basic_string<_CharT,_Traits,_Alloc>::npos) 
+  explicit bitset(const basic_string<_CharT, _Traits, _Alloc>& __s,
+                  size_t __pos = 0)
+    : _Base() 
+  {
+    if (__pos > __s.size()) 
+      __STL_THROW(out_of_range("bitset"));
+    _M_copy_from_string(__s, __pos,
+                        basic_string<_CharT, _Traits, _Alloc>::npos);
+  }
+  template<class _CharT, class _Traits, class _Alloc>
+  bitset(const basic_string<_CharT, _Traits, _Alloc>& __s,
+         size_t __pos,
+         size_t __n)
     : _Base() 
   {
     if (__pos > __s.size()) 
       __STL_THROW(out_of_range("bitset"));
     _M_copy_from_string(__s, __pos, __n);
   }
+#else /* __STL_MEMBER_TEMPLATES */
+  explicit bitset(const basic_string<char>& __s,
+                  size_t __pos = 0,
+                  size_t __n = basic_string<char>::npos) 
+    : _Base() 
+  {
+    if (__pos > __s.size()) 
+      __STL_THROW(out_of_range("bitset"));
+    _M_copy_from_string(__s, __pos, __n);
+  }
+#endif /* __STL_MEMBER_TEMPLATES */
 
   // 23.3.5.2 bitset operations:
   bitset<_Nb,_WordT>& operator&=(const bitset<_Nb,_WordT>& __rhs) {
@@ -753,24 +799,29 @@ public:
 
   unsigned long to_ulong() const { return _M_do_to_ulong(); }
 
-#if __STL_EXPLICIT_FUNCTION_TMPL_ARGS
+#if defined(__STL_MEMBER_TEMPLATES) && \
+    defined(__STL_EXPLICIT_FUNCTION_TMPL_ARGS)
   template <class _CharT, class _Traits, class _Alloc>
   basic_string<_CharT, _Traits, _Alloc> to_string() const {
     basic_string<_CharT, _Traits, _Alloc> __result;
     _M_copy_to_string(__result);
     return __result;
   }
-#endif /* __STL_EXPLICIT_FUNCTION_TMPL_ARGS */
+#endif /* member templates and explicit function template args */
 
   // Helper functions for string operations.
+#ifdef __STL_MEMBER_TEMPLATES
   template<class _CharT, class _Traits, class _Alloc>
   void _M_copy_from_string(const basic_string<_CharT,_Traits,_Alloc>& __s,
                           size_t,
                           size_t);
 
-  // Helper functions for string operations.
   template<class _CharT, class _Traits, class _Alloc>
   void _M_copy_to_string(basic_string<_CharT,_Traits,_Alloc>&) const;
+#else /* __STL_MEMBER_TEMPLATES */
+  void _M_copy_from_string(const basic_string<char>&, size_t, size_t);
+  void _M_copy_to_string(basic_string<char>&) const;
+#endif /* __STL_MEMBER_TEMPLATES */
 
   size_t count() const { return _M_do_count(); }
 
@@ -818,6 +869,8 @@ public:
 // Definitions of non-inline member functions.
 //
 
+#ifdef __STL_MEMBER_TEMPLATES
+
 template <size_t _Nb, class _WordT>
 template<class _CharT, class _Traits, class _Alloc>
 void bitset<_Nb, _WordT>
@@ -852,6 +905,40 @@ void bitset<_Nb, _WordT>
       __s[_Nb - 1 - __i] = '1';
 }
 
+#else /* __STL_MEMBER_TEMPLATES */
+
+template <size_t _Nb, class _WordT>
+void bitset<_Nb, _WordT>::_M_copy_from_string(const basic_string<char>& __s,
+                                              size_t __pos, size_t __n)
+{
+  reset();
+  size_t __tmp = _Nb;
+  const size_t __nbits = min(__tmp, min(__n, __s.size() - __pos));
+  for (size_t __i = 0; __i < __nbits; ++__i) {
+    switch(__s[__pos + __nbits - __i - 1]) {
+    case '0':
+      break;
+    case '1':
+      set(__i);
+      break;
+    default:
+      __STL_THROW(invalid_argument("bitset"));
+    }
+  }
+}
+
+template <size_t _Nb, class _WordT>
+void bitset<_Nb, _WordT>::_M_copy_to_string(basic_string<char>& __s) const
+{
+  __s.assign(_Nb, '0');
+  
+  for (size_t __i = 0; __i < _Nb; ++__i) 
+    if (_Unchecked_test(__i))
+      __s[_Nb - 1 - __i] = '1';
+}
+
+#endif /* __STL_MEMBER_TEMPLATES */
+
 // ------------------------------------------------------------
 
 //
@@ -883,7 +970,60 @@ inline bitset<_Nb,_WordT> operator^(const bitset<_Nb,_WordT>& __x,
   return __result;
 }
 
-// NOTE: these must be rewritten once we have templatized iostreams.
+#ifdef __STL_USE_NEW_IOSTREAMS
+
+template <class _CharT, class _Traits, size_t _Nb, class _WordT>
+basic_istream<_CharT, _Traits>&
+operator>>(basic_istream<_CharT, _Traits>& __is, bitset<_Nb,_WordT>& __x)
+{
+  basic_string<_CharT, _Traits> __tmp;
+  __tmp.reserve(_Nb);
+
+  // Skip whitespace
+  typename basic_istream<_CharT, _Traits>::sentry __sentry(__is);
+  if (__sentry) {
+    basic_streambuf<_CharT, _Traits>* __buf = __is.rdbuf();
+    for (size_t __i = 0; __i < _Nb; ++__i) {
+      static _Traits::int_type __eof = _Traits::eof();
+
+      typename _Traits::int_type __c1 = __buf->sbumpc();
+      if (_Traits::eq_int_type(__c1, __eof)) {
+        __is.setstate(ios_base::eofbit);
+        break;
+      }
+      else {
+        char __c2 = _Traits::to_char_type(__c1);
+        char __c  = __is.narrow(__c2, '*');
+
+        if (__c == '0' || __c == '1')
+          __tmp.push_back(__c);
+        else if (_Traits::eq_int_type(__buf->sputbackc(__c2), __eof)) {
+          __is.setstate(ios_base::failbit);
+          break;
+        }
+      }
+    }
+
+    if (__tmp.empty())
+      __is.setstate(ios_base::failbit);
+    else
+      __x._M_copy_from_string(__tmp, static_cast<size_t>(0), _Nb);
+  }
+
+  return __is;
+}
+
+template <class _CharT, class _Traits, size_t _Nb, class _WordT>
+basic_ostream<_CharT, _Traits>&
+operator<<(basic_ostream<_CharT, _Traits>& __os,
+           const bitset<_Nb,_WordT>& __x)
+{
+  basic_string<_CharT, _Traits> __tmp;
+  __x._M_copy_to_string(__tmp);
+  return __os << __tmp;
+}
+
+#else /* __STL_USE_NEW_IOSTREAMS */
 
 template <size_t _Nb, class _WordT>
 istream&
@@ -891,7 +1031,6 @@ operator>>(istream& __is, bitset<_Nb,_WordT>& __x) {
   string __tmp;
   __tmp.reserve(_Nb);
 
-  // In new templatized iostreams, use istream::sentry
   if (__is.flags() & ios::skipws) {
     char __c;
     do 
@@ -929,6 +1068,8 @@ ostream& operator<<(ostream& __os, const bitset<_Nb,_WordT>& __x) {
   __x._M_copy_to_string(__tmp);
   return __os << __tmp;
 }
+
+#endif /* __STL_USE_NEW_IOSTREAMS */
 
 // ------------------------------------------------------------
 // Lookup tables for find and count operations.

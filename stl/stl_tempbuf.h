@@ -109,8 +109,14 @@ public:
   _Tp* end() { return _M_buffer + _M_len; }
 
   _Temporary_buffer(_ForwardIterator __first, _ForwardIterator __last) {
+    // Workaround for a __type_traits bug in the pre-7.3 compiler.
+#   if defined(__sgi) && !defined(__GNUC__) && _COMPILER_VERSION < 730
+    typedef typename __type_traits<_Tp>::is_POD_type _Trivial;
+#   else
     typedef typename __type_traits<_Tp>::has_trivial_default_constructor
             _Trivial;
+#   endif
+
     __STL_TRY {
       _M_len = 0;
       distance(__first, __last, _M_len);
