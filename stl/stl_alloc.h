@@ -223,26 +223,27 @@ public:
 
   static void* allocate(size_t __n)
   {
-    char* __result = (char*)_Alloc::allocate(__n + _S_extra);
+    char* __result = (char*)_Alloc::allocate(__n + (int) _S_extra);
     *(size_t*)__result = __n;
-    return __result + _S_extra;
+    return __result + (int) _S_extra;
   }
 
   static void deallocate(void* __p, size_t __n)
   {
-    char* __real_p = (char*)__p - _S_extra;
+    char* __real_p = (char*)__p - (int) _S_extra;
     assert(*(size_t*)__real_p == __n);
-    _Alloc::deallocate(__real_p, __n + _S_extra);
+    _Alloc::deallocate(__real_p, __n + (int) _S_extra);
   }
 
   static void* reallocate(void* __p, size_t __old_sz, size_t __new_sz)
   {
-    char* __real_p = (char*)__p - _S_extra;
+    char* __real_p = (char*)__p - (int) _S_extra;
     assert(*(size_t*)__real_p == __old_sz);
     char* __result = (char*)
-      _Alloc::reallocate(__real_p, __old_sz + _S_extra, __new_sz + _S_extra);
+      _Alloc::reallocate(__real_p, __old_sz + (int) _S_extra,
+                                   __new_sz + (int) _S_extra);
     *(size_t*)__result = __new_sz;
-    return __result + _S_extra;
+    return __result + (int) _S_extra;
   }
 
 };
@@ -284,7 +285,7 @@ typedef malloc_alloc single_client_alloc;
 // breaks if we make these template class members:
   enum {_ALIGN = 8};
   enum {_MAX_BYTES = 128};
-  enum {_NFREELISTS = _MAX_BYTES/_ALIGN};
+  enum {_NFREELISTS = 16}; // _MAX_BYTES/_ALIGN
 #endif
 
 template <bool threads, int inst>
@@ -296,11 +297,11 @@ private:
 # ifndef __SUNPRO_CC
     enum {_ALIGN = 8};
     enum {_MAX_BYTES = 128};
-    enum {_NFREELISTS = _MAX_BYTES/_ALIGN};
+    enum {_NFREELISTS = 16}; // _MAX_BYTES/_ALIGN
 # endif
   static size_t
   _S_round_up(size_t __bytes) 
-    { return (((__bytes) + _ALIGN-1) & ~(_ALIGN - 1)); }
+    { return (((__bytes) + (size_t) _ALIGN-1) & ~((size_t) _ALIGN - 1)); }
 
 __PRIVATE:
   union _Obj {
@@ -315,7 +316,7 @@ private:
     static _Obj* __STL_VOLATILE _S_free_list[_NFREELISTS]; 
 # endif
   static  size_t _S_freelist_index(size_t __bytes) {
-        return (((__bytes) + _ALIGN-1)/_ALIGN - 1);
+        return (((__bytes) + (size_t)_ALIGN-1)/(size_t)_ALIGN - 1);
   }
 
   // Returns an object of size __n, and optionally adds to size __n free list.
@@ -349,48 +350,52 @@ public:
   /* __n must be > 0      */
   static void* allocate(size_t __n)
   {
-    _Obj* __STL_VOLATILE* __my_free_list;
-    _Obj* __RESTRICT __result;
+    void* __ret = 0;
 
     if (__n > (size_t) _MAX_BYTES) {
-        return(malloc_alloc::allocate(__n));
+      __ret = malloc_alloc::allocate(__n);
     }
-    __my_free_list = _S_free_list + _S_freelist_index(__n);
-    // Acquire the lock here with a constructor call.
-    // This ensures that it is released in exit or during stack
-    // unwinding.
-#       ifndef _NOTHREADS
-        /*REFERENCED*/
-        _Lock __lock_instance;
-#       endif
-    __result = *__my_free_list;
-    if (__result == 0) {
-        void* __r = _S_refill(_S_round_up(__n));
-        return __r;
+    else {
+      _Obj* __STL_VOLATILE* __my_free_list
+          = _S_free_list + _S_freelist_index(__n);
+      // Acquire the lock here with a constructor call.
+      // This ensures that it is released in exit or during stack
+      // unwinding.
+#     ifndef _NOTHREADS
+      /*REFERENCED*/
+      _Lock __lock_instance;
+#     endif
+      _Obj* __RESTRICT __result = *__my_free_list;
+      if (__result == 0)
+        __ret = _S_refill(_S_round_up(__n));
+      else {
+        *__my_free_list = __result -> _M_free_list_link;
+        __ret = __result;
+      }
     }
-    *__my_free_list = __result -> _M_free_list_link;
-    return (__result);
+
+    return __ret;
   };
 
   /* __p may not be 0 */
   static void deallocate(void* __p, size_t __n)
   {
-    _Obj* __q = (_Obj*)__p;
-    _Obj* __STL_VOLATILE* __my_free_list;
+    if (__n > (size_t) _MAX_BYTES)
+      malloc_alloc::deallocate(__p, __n);
+    else {
+      _Obj* __STL_VOLATILE*  __my_free_list
+          = _S_free_list + _S_freelist_index(__n);
+      _Obj* __q = (_Obj*)__p;
 
-    if (__n > (size_t) _MAX_BYTES) {
-        malloc_alloc::deallocate(__p, __n);
-        return;
-    }
-    __my_free_list = _S_free_list + _S_freelist_index(__n);
-    // acquire lock
+      // acquire lock
 #       ifndef _NOTHREADS
-        /*REFERENCED*/
-        _Lock __lock_instance;
+      /*REFERENCED*/
+      _Lock __lock_instance;
 #       endif /* _NOTHREADS */
-    __q -> _M_free_list_link = *__my_free_list;
-    *__my_free_list = __q;
-    // lock is released here
+      __q -> _M_free_list_link = *__my_free_list;
+      *__my_free_list = __q;
+      // lock is released here
+    }
   }
 
   static void* reallocate(void* __p, size_t __old_sz, size_t __new_sz);
@@ -444,7 +449,9 @@ __default_alloc_template<__threads, __inst>::_S_chunk_alloc(size_t __size,
             // Try to make do with what we have.  That can't
             // hurt.  We do not try smaller requests, since that tends
             // to result in disaster on multi-process machines.
-            for (__i = __size; __i <= _MAX_BYTES; __i += _ALIGN) {
+            for (__i = __size;
+                 __i <= (size_t) _MAX_BYTES;
+                 __i += (size_t) _ALIGN) {
                 __my_free_list = _S_free_list + _S_freelist_index(__i);
                 __p = *__my_free_list;
                 if (0 != __p) {
@@ -609,6 +616,7 @@ public:
 
 template<>
 class allocator<void> {
+public:
   typedef size_t      size_type;
   typedef ptrdiff_t   difference_type;
   typedef void*       pointer;

@@ -153,8 +153,14 @@ public:
   bool empty() const { return _M_ht.empty(); }
   void swap(hash_set& __hs) { _M_ht.swap(__hs._M_ht); }
 
+#ifdef __STL_MEMBER_TEMPLATES
+  template <class _Val, class _HF, class _EqK, class _Al>  
+  friend bool operator== (const hash_set<_Val, _HF, _EqK, _Al>&,
+                          const hash_set<_Val, _HF, _EqK, _Al>&);
+#else /* __STL_MEMBER_TEMPLATES */
   friend bool __STD_QUALIFIER
   operator== __STL_NULL_TMPL_ARGS (const hash_set&, const hash_set&);
+#endif /* __STL_MEMBER_TEMPLATES */
 
   iterator begin() const { return _M_ht.begin(); }
   iterator end() const { return _M_ht.end(); }
@@ -345,8 +351,14 @@ public:
   bool empty() const { return _M_ht.empty(); }
   void swap(hash_multiset& hs) { _M_ht.swap(hs._M_ht); }
 
+#ifdef __STL_MEMBER_TEMPLATES
+  template <class _Val, class _HF, class _EqK, class _Al>  
+  friend bool operator== (const hash_multiset<_Val, _HF, _EqK, _Al>&,
+                          const hash_multiset<_Val, _HF, _EqK, _Al>&);
+#else /* __STL_MEMBER_TEMPLATES */
   friend bool __STD_QUALIFIER
   operator== __STL_NULL_TMPL_ARGS (const hash_multiset&,const hash_multiset&);
+#endif /* __STL_MEMBER_TEMPLATES */
 
   iterator begin() const { return _M_ht.begin(); }
   iterator end() const { return _M_ht.end(); }
@@ -413,6 +425,66 @@ swap(hash_multiset<_Val,_HashFcn,_EqualKey,_Alloc>& __hs1,
 }
 
 #endif /* __STL_FUNCTION_TMPL_PARTIAL_ORDER */
+
+// Specialization of insert_iterator so that it will work for hash_set
+// and hash_multiset.
+
+#ifdef __STL_CLASS_PARTIAL_SPECIALIZATION
+
+template <class _Value, class _HashFcn, class _EqualKey, class _Alloc>
+class insert_iterator<hash_set<_Value, _HashFcn, _EqualKey, _Alloc> > {
+protected:
+  typedef hash_set<_Value, _HashFcn, _EqualKey, _Alloc> _Container;
+  _Container* container;
+public:
+  typedef _Container          container_type;
+  typedef output_iterator_tag iterator_category;
+  typedef void                value_type;
+  typedef void                difference_type;
+  typedef void                pointer;
+  typedef void                reference;
+
+  insert_iterator(_Container& __x) : container(&__x) {}
+  insert_iterator(_Container& __x, typename _Container::iterator)
+    : container(&__x) {}
+  insert_iterator<_Container>&
+  operator=(const typename _Container::value_type& __value) { 
+    container->insert(__value);
+    return *this;
+  }
+  insert_iterator<_Container>& operator*() { return *this; }
+  insert_iterator<_Container>& operator++() { return *this; }
+  insert_iterator<_Container>& operator++(int) { return *this; }
+};
+
+template <class _Value, class _HashFcn, class _EqualKey, class _Alloc>
+class insert_iterator<hash_multiset<_Value, _HashFcn, _EqualKey, _Alloc> > {
+protected:
+  typedef hash_multiset<_Value, _HashFcn, _EqualKey, _Alloc> _Container;
+  _Container* container;
+  typename _Container::iterator iter;
+public:
+  typedef _Container          container_type;
+  typedef output_iterator_tag iterator_category;
+  typedef void                value_type;
+  typedef void                difference_type;
+  typedef void                pointer;
+  typedef void                reference;
+
+  insert_iterator(_Container& __x) : container(&__x) {}
+  insert_iterator(_Container& __x, typename _Container::iterator)
+    : container(&__x) {}
+  insert_iterator<_Container>&
+  operator=(const typename _Container::value_type& __value) { 
+    container->insert(__value);
+    return *this;
+  }
+  insert_iterator<_Container>& operator*() { return *this; }
+  insert_iterator<_Container>& operator++() { return *this; }
+  insert_iterator<_Container>& operator++(int) { return *this; }
+};
+
+#endif /* __STL_CLASS_PARTIAL_SPECIALIZATION */
 
 #if defined(__sgi) && !defined(__GNUC__) && (_MIPS_SIM != _MIPS_SIM_ABI32)
 #pragma reset woff 1174

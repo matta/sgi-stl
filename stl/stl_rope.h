@@ -198,7 +198,7 @@ class _Rope_char_consumer {
     public:
         // If we had member templates, these should not be virtual.
         // For now we need to use run-time parametrization where
-        // compile-time would do.  _Hence this should all be private
+        // compile-time would do.  Hence this should all be private
         // for now.
         // The symmetry with char_producer is accidental and temporary.
         virtual ~_Rope_char_consumer() {};
@@ -859,10 +859,15 @@ class _Rope_char_ptr_proxy {
         _M_root = __x._M_root;
         return *this;
     }
+#ifdef __STL_MEMBER_TEMPLATES
+    template<class _CharT2, class _Alloc2>
+    friend bool operator== (const _Rope_char_ptr_proxy<_CharT2,_Alloc2>& __x,
+                            const _Rope_char_ptr_proxy<_CharT2,_Alloc2>& __y);
+#else
     friend bool operator==  __STL_NULL_TMPL_ARGS
                 (const _Rope_char_ptr_proxy<_CharT,_Alloc>& __x,
                  const _Rope_char_ptr_proxy<_CharT,_Alloc>& __y);
-
+#endif
     _Rope_char_ref_proxy<_CharT,_Alloc> operator*() const {
         return _Rope_char_ref_proxy<_CharT,_Alloc>(_M_root, _M_pos);
     }
@@ -1036,6 +1041,20 @@ class _Rope_const_iterator : public _Rope_iterator_base<_CharT,_Alloc> {
         _M_decr(1);
         return _Rope_const_iterator<_CharT,_Alloc>(_M_root, __old_pos);
     }
+#if defined(__STL_MEMBER_TEMPLATES) && defined(__STL_FUNCTION_TMPL_PARTIAL_ORDER)
+    template<class _CharT2, class _Alloc2>
+    friend _Rope_const_iterator<_CharT2,_Alloc2> operator-
+        (const _Rope_const_iterator<_CharT2,_Alloc2>& __x,
+         ptrdiff_t __n);
+    template<class _CharT2, class _Alloc2>
+    friend _Rope_const_iterator<_CharT2,_Alloc2> operator+
+        (const _Rope_const_iterator<_CharT2,_Alloc2>& __x,
+         ptrdiff_t __n);
+    template<class _CharT2, class _Alloc2>
+    friend _Rope_const_iterator<_CharT2,_Alloc2> operator+
+        (ptrdiff_t __n,
+         const _Rope_const_iterator<_CharT2,_Alloc2>& __x);
+#else
     friend _Rope_const_iterator<_CharT,_Alloc> operator- __STL_NULL_TMPL_ARGS
         (const _Rope_const_iterator<_CharT,_Alloc>& __x,
          ptrdiff_t __n);
@@ -1045,9 +1064,26 @@ class _Rope_const_iterator : public _Rope_iterator_base<_CharT,_Alloc> {
     friend _Rope_const_iterator<_CharT,_Alloc> operator+ __STL_NULL_TMPL_ARGS
         (ptrdiff_t __n,
          const _Rope_const_iterator<_CharT,_Alloc>& __x);
+#endif
+
     reference operator[](size_t __n) {
         return rope<_CharT,_Alloc>::_S_fetch(_M_root, _M_current_pos + __n);
     }
+
+#if defined(__STL_MEMBER_TEMPLATES) && defined(__STL_FUNCTION_TMPL_PARTIAL_ORDER)
+    template<class _CharT2, class _Alloc2>
+    friend bool operator==
+        (const _Rope_const_iterator<_CharT2,_Alloc2>& __x,
+         const _Rope_const_iterator<_CharT2,_Alloc2>& __y);
+    template<class _CharT2, class _Alloc2>
+    friend bool operator< 
+        (const _Rope_const_iterator<_CharT2,_Alloc2>& __x,
+         const _Rope_const_iterator<_CharT2,_Alloc2>& __y);
+    template<class _CharT2, class _Alloc2>
+    friend ptrdiff_t operator-
+        (const _Rope_const_iterator<_CharT2,_Alloc2>& __x,
+         const _Rope_const_iterator<_CharT2,_Alloc2>& __y);
+#else
     friend bool operator== __STL_NULL_TMPL_ARGS
         (const _Rope_const_iterator<_CharT,_Alloc>& __x,
          const _Rope_const_iterator<_CharT,_Alloc>& __y);
@@ -1057,6 +1093,7 @@ class _Rope_const_iterator : public _Rope_iterator_base<_CharT,_Alloc> {
     friend ptrdiff_t operator- __STL_NULL_TMPL_ARGS
         (const _Rope_const_iterator<_CharT,_Alloc>& __x,
          const _Rope_const_iterator<_CharT,_Alloc>& __y);
+#endif
 };
 
 template<class _CharT, class _Alloc>
@@ -1159,6 +1196,33 @@ class _Rope_iterator : public _Rope_iterator_base<_CharT,_Alloc> {
         return _Rope_char_ref_proxy<_CharT,_Alloc>(
           _M_root_rope, _M_current_pos + __n);
     }
+
+#if defined(__STL_MEMBER_TEMPLATES) && defined(__STL_FUNCTION_TMPL_PARTIAL_ORDER)
+    template<class _CharT2, class _Alloc2>
+    friend bool operator==
+        (const _Rope_iterator<_CharT2,_Alloc2>& __x,
+         const _Rope_iterator<_CharT2,_Alloc2>& __y);
+    template<class _CharT2, class _Alloc2>
+    friend bool operator<
+        (const _Rope_iterator<_CharT2,_Alloc2>& __x,
+         const _Rope_iterator<_CharT2,_Alloc2>& __y);
+    template<class _CharT2, class _Alloc2>
+    friend ptrdiff_t operator-
+        (const _Rope_iterator<_CharT2,_Alloc2>& __x,
+         const _Rope_iterator<_CharT2,_Alloc2>& __y);
+    template<class _CharT2, class _Alloc2>
+    friend _Rope_iterator<_CharT2,_Alloc2> operator-
+        (const _Rope_iterator<_CharT2,_Alloc2>& __x,
+         ptrdiff_t __n);
+    template<class _CharT2, class _Alloc2>
+    friend _Rope_iterator<_CharT2,_Alloc2> operator+
+        (const _Rope_iterator<_CharT2,_Alloc2>& __x,
+         ptrdiff_t __n);
+    template<class _CharT2, class _Alloc2>
+    friend _Rope_iterator<_CharT2,_Alloc2> operator+
+        (ptrdiff_t __n,
+         const _Rope_iterator<_CharT2,_Alloc2>& __x);
+#else
     friend bool operator== __STL_NULL_TMPL_ARGS
         (const _Rope_iterator<_CharT,_Alloc>& __x,
          const _Rope_iterator<_CharT,_Alloc>& __y);
@@ -1177,7 +1241,7 @@ class _Rope_iterator : public _Rope_iterator_base<_CharT,_Alloc> {
     friend _Rope_iterator<_CharT,_Alloc> operator+ __STL_NULL_TMPL_ARGS
         (ptrdiff_t __n,
          const _Rope_iterator<_CharT,_Alloc>& __x);
-
+#endif
 };
 
 #if defined(__sgi) && !defined(__GNUC__) && (_MIPS_SIM != _MIPS_SIM_ABI32)
@@ -1848,6 +1912,21 @@ class rope : public _Rope_base<_CharT,_Alloc> {
             return const_reverse_iterator(begin());
         }
 
+#if defined(__STL_MEMBER_TEMPLATES) && defined(__STL_FUNCTION_TMPL_PARTIAL_ORDER)
+        template<class _CharT2, class _Alloc2>
+        friend rope<_CharT2,_Alloc2>
+        operator+ (const rope<_CharT2,_Alloc2>& __left,
+                   const rope<_CharT2,_Alloc2>& __right);
+        
+        template<class _CharT2, class _Alloc2>
+        friend rope<_CharT2,_Alloc2>
+        operator+ (const rope<_CharT2,_Alloc2>& __left,
+                   const _CharT2* __right);
+        
+        template<class _CharT2, class _Alloc2>
+        friend rope<_CharT2,_Alloc2>
+        operator+ (const rope<_CharT2,_Alloc2>& __left, _CharT2 __right);
+#else
         friend rope<_CharT,_Alloc> __STD_QUALIFIER
         operator+ __STL_NULL_TMPL_ARGS (const rope<_CharT,_Alloc>& __left,
                                         const rope<_CharT,_Alloc>& __right);
@@ -1859,7 +1938,7 @@ class rope : public _Rope_base<_CharT,_Alloc> {
         friend rope<_CharT,_Alloc> __STD_QUALIFIER
         operator+ __STL_NULL_TMPL_ARGS (const rope<_CharT,_Alloc>& __left,
                                         _CharT __right);
-        
+#endif        
         // The symmetric cases are intentionally omitted, since they're presumed
         // to be less common, and we don't handle them as well.
 

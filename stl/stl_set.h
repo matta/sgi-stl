@@ -186,10 +186,17 @@ public:
     return _M_t.equal_range(__x);
   }
 
+#ifdef __STL_MEMBER_TEMPLATES
+  template <class _K1, class _C1, class _A1>
+  friend bool operator== (const set<_K1,_C1,_A1>&, const set<_K1,_C1,_A1>&);
+  template <class _K1, class _C1, class _A1>
+  friend bool operator< (const set<_K1,_C1,_A1>&, const set<_K1,_C1,_A1>&);
+#else /* __STL_MEMBER_TEMPLATES */
   friend bool __STD_QUALIFIER
   operator== __STL_NULL_TMPL_ARGS (const set&, const set&);
   friend bool __STD_QUALIFIER
   operator<  __STL_NULL_TMPL_ARGS (const set&, const set&);
+#endif /* __STL_MEMBER_TEMPLATES */
 };
 
 template <class _Key, class _Compare, class _Alloc>

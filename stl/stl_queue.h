@@ -49,10 +49,19 @@ inline bool operator<(const queue<_Tp, _Seq>&, const queue<_Tp, _Seq>&);
 template <class _Tp, class _Sequence>
 class queue {
 
+#ifdef __STL_MEMBER_TEMPLATES 
+  template <class _Tp1, class _Seq1>
+  friend bool operator== (const queue<_Tp1, _Seq1>&,
+                          const queue<_Tp1, _Seq1>&);
+  template <class _Tp1, class _Seq1>
+  friend bool operator< (const queue<_Tp1, _Seq1>&,
+                         const queue<_Tp1, _Seq1>&);
+#else /* __STL_MEMBER_TEMPLATES */
   friend bool __STD_QUALIFIER
   operator== __STL_NULL_TMPL_ARGS (const queue&, const queue&);
   friend bool __STD_QUALIFIER
   operator<  __STL_NULL_TMPL_ARGS (const queue&, const queue&);
+#endif /* __STL_MEMBER_TEMPLATES */
 
 public:
   typedef typename _Sequence::value_type      value_type;

@@ -122,9 +122,7 @@ inline const _Tp& max(const _Tp& __a, const _Tp& __b, _Compare __comp) {
 // calls to copy with memmove whenever possible.  (Memmove, not memcpy,
 // because the input and output ranges are permitted to overlap.)
 // (2) If we're using random access iterators, then write the loop as
-// a for loop with an explicit count.  The auxiliary class __copy_dispatch
-// is a workaround for compilers that don't support partial ordering of
-// function templates.
+// a for loop with an explicit count.
 
 template <class _InputIter, class _OutputIter, class _Distance>
 inline _OutputIter __copy(_InputIter __first, _InputIter __last,
@@ -156,7 +154,54 @@ __copy_trivial(const _Tp* __first, const _Tp* __last, _Tp* __result) {
   return __result + (__last - __first);
 }
 
-#ifdef __STL_CLASS_PARTIAL_SPECIALIZATION 
+#if defined(__STL_FUNCTION_TMPL_PARTIAL_ORDER)
+
+template <class _InputIter, class _OutputIter>
+inline _OutputIter __copy_aux2(_InputIter __first, _InputIter __last,
+                               _OutputIter __result, __false_type) {
+  return __copy(__first, __last, __result,
+                __ITERATOR_CATEGORY(__first),
+                __DISTANCE_TYPE(__first));
+}
+
+template <class _InputIter, class _OutputIter>
+inline _OutputIter __copy_aux2(_InputIter __first, _InputIter __last,
+                               _OutputIter __result, __true_type) {
+  return __copy(__first, __last, __result,
+                __ITERATOR_CATEGORY(__first),
+                __DISTANCE_TYPE(__first));
+}
+
+template <class _Tp>
+inline _Tp* __copy_aux2(_Tp* __first, _Tp* __last, _Tp* __result,
+                        __true_type) {
+  return __copy_trivial(__first, __last, __result);
+}
+
+template <class _Tp>
+inline _Tp* __copy_aux2(const _Tp* __first, const _Tp* __last, _Tp* __result,
+                        __true_type) {
+  return __copy_trivial(__first, __last, __result);
+}
+
+
+template <class _InputIter, class _OutputIter, class _Tp>
+inline _OutputIter __copy_aux(_InputIter __first, _InputIter __last,
+                              _OutputIter __result, _Tp*) {
+  typedef typename __type_traits<_Tp>::has_trivial_assignment_operator
+          _Trivial;
+  return __copy_aux2(__first, __last, __result, _Trivial());
+}
+
+template <class _InputIter, class _OutputIter>
+inline _OutputIter copy(_InputIter __first, _InputIter __last,
+                        _OutputIter __result) {
+  return __copy_aux(__first, __last, __result, __VALUE_TYPE(__first));
+}
+
+// Hack for compilers that don't have partial ordering of function templates
+// but do have partial specialization of class templates.
+#elif defined(__STL_CLASS_PARTIAL_SPECIALIZATION)
 
 template <class _InputIter, class _OutputIter, class _BoolType>
 struct __copy_dispatch {
@@ -194,6 +239,9 @@ inline _OutputIter copy(_InputIter __first, _InputIter __last,
     ::copy(__first, __last, __result);
 }
 
+// Fallback for compilers with neither partial ordering nor partial
+// specialization.  Define the faster version for the basic builtin
+// types.
 #else /* __STL_CLASS_PARTIAL_SPECIALIZATION */
 
 template <class _InputIter, class _OutputIter>
@@ -205,17 +253,32 @@ inline _OutputIter copy(_InputIter __first, _InputIter __last,
                 __DISTANCE_TYPE(__first));
 }
 
-inline char* copy(const char* __first, const char* __last, char* __result) {
-  memmove(__result, __first, __last - __first);
-  return __result + (__last - __first);
-}
+#define __SGI_STL_DECLARE_COPY_TRIVIAL(_Tp)                                \
+  inline _Tp* copy(const _Tp* __first, const _Tp* __last, _Tp* __result) { \
+    return __copy_trivial(__first, __last, __result);                      \
+  }
 
-inline wchar_t* copy(const wchar_t* __first, const wchar_t* __last,
-                     wchar_t* __result) {
-  memmove(__result, __first, sizeof(wchar_t) * (__last - __first));
-  return __result + (__last - __first);
-}
+__SGI_STL_DECLARE_COPY_TRIVIAL(char)
+__SGI_STL_DECLARE_COPY_TRIVIAL(signed char)
+__SGI_STL_DECLARE_COPY_TRIVIAL(unsigned char)
+__SGI_STL_DECLARE_COPY_TRIVIAL(short)
+__SGI_STL_DECLARE_COPY_TRIVIAL(unsigned short)
+__SGI_STL_DECLARE_COPY_TRIVIAL(int)
+__SGI_STL_DECLARE_COPY_TRIVIAL(unsigned int)
+__SGI_STL_DECLARE_COPY_TRIVIAL(long)
+__SGI_STL_DECLARE_COPY_TRIVIAL(unsigned long)
+#ifdef __STL_HAS_WCHAR_T
+__SGI_STL_DECLARE_COPY_TRIVIAL(wchar_t)
+#endif
+#ifdef _STL_LONG_LONG
+__SGI_STL_DECLARE_COPY_TRIVIAL(long long)
+__SGI_STL_DECLARE_COPY_TRIVIAL(unsigned long long)
+#endif 
+__SGI_STL_DECLARE_COPY_TRIVIAL(float)
+__SGI_STL_DECLARE_COPY_TRIVIAL(double)
+__SGI_STL_DECLARE_COPY_TRIVIAL(long double)
 
+#undef __SGI_STL_DECLARE_COPY_TRIVIAL
 #endif /* __STL_CLASS_PARTIAL_SPECIALIZATION */
 
 //--------------------------------------------------

@@ -160,7 +160,7 @@ static const unsigned long __stl_prime_list[__stl_num_primes] =
 inline unsigned long __stl_next_prime(unsigned long __n)
 {
   const unsigned long* __first = __stl_prime_list;
-  const unsigned long* __last = __stl_prime_list + __stl_num_primes;
+  const unsigned long* __last = __stl_prime_list + (int)__stl_num_primes;
   const unsigned long* pos = lower_bound(__first, __last, __n);
   return pos == __last ? *(__last - 1) : *pos;
 }
@@ -334,15 +334,21 @@ public:
 
   const_iterator end() const { return const_iterator(0, this); }
 
-  friend bool
+#ifdef __STL_MEMBER_TEMPLATES
+  template <class _Vl, class _Ky, class _HF, class _Ex, class _Eq, class _Al>
+  friend bool operator== (const hashtable<_Vl, _Ky, _HF, _Ex, _Eq, _Al>&,
+                          const hashtable<_Vl, _Ky, _HF, _Ex, _Eq, _Al>&);
+#else /* __STL_MEMBER_TEMPLATES */
+  friend bool __STD_QUALIFIER
   operator== __STL_NULL_TMPL_ARGS (const hashtable&, const hashtable&);
+#endif /* __STL_MEMBER_TEMPLATES */
 
 public:
 
   size_type bucket_count() const { return _M_buckets.size(); }
 
   size_type max_bucket_count() const
-    { return __stl_prime_list[__stl_num_primes - 1]; } 
+    { return __stl_prime_list[(int)__stl_num_primes - 1]; } 
 
   size_type elems_in_bucket(size_type __bucket) const
   {
@@ -973,7 +979,7 @@ void hashtable<_Val,_Key,_HF,_Ex,_Eq,_All>
          __next != __first; 
          __cur = __next, __next = __cur->_M_next)
       ;
-    while (__next) {
+    while (__next != __last) {
       __cur->_M_next = __next->_M_next;
       _M_delete_node(__next);
       __next = __cur->_M_next;

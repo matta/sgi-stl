@@ -847,8 +847,16 @@ inline bool operator==(const istream_iterator<_Tp, _Dist>&,
 
 template <class _Tp, class _Dist>
 class istream_iterator {
-  friend bool operator== __STL_NULL_TMPL_ARGS (const istream_iterator&,
-                                               const istream_iterator&);
+#ifdef __STL_MEMBER_TEMPLATES
+  template <class _T1, class _D1>
+  friend bool operator==(const istream_iterator<_T1, _D1>&,
+                         const istream_iterator<_T1, _D1>&);
+#else /* __STL_MEMBER_TEMPLATES */
+  friend bool __STD_QUALIFIER
+  operator== __STL_NULL_TMPL_ARGS (const istream_iterator&,
+                                   const istream_iterator&);
+#endif /* __STL_MEMBER_TEMPLATES */
+
 protected:
   istream* _M_stream;
   _Tp _M_value;

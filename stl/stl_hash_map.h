@@ -155,8 +155,15 @@ public:
   bool empty() const { return _M_ht.empty(); }
   void swap(hash_map& __hs) { _M_ht.swap(__hs._M_ht); }
 
+#ifdef __STL_MEMBER_TEMPLATES
+  template <class _K1, class _T1, class _HF, class _EqK, class _Al>
+  friend bool operator== (const hash_map<_K1, _T1, _HF, _EqK, _Al>&,
+                          const hash_map<_K1, _T1, _HF, _EqK, _Al>&);
+#else /* __STL_MEMBER_TEMPLATES */
   friend bool __STD_QUALIFIER
   operator== __STL_NULL_TMPL_ARGS (const hash_map&, const hash_map&);
+#endif /* __STL_MEMBER_TEMPLATES */
+
 
   iterator begin() { return _M_ht.begin(); }
   iterator end() { return _M_ht.end(); }
@@ -353,8 +360,14 @@ public:
   bool empty() const { return _M_ht.empty(); }
   void swap(hash_multimap& __hs) { _M_ht.swap(__hs._M_ht); }
 
+#ifdef __STL_MEMBER_TEMPLATES
+  template <class _K1, class _T1, class _HF, class _EqK, class _Al>
+  friend bool operator== (const hash_multimap<_K1, _T1, _HF, _EqK, _Al>&,
+                          const hash_multimap<_K1, _T1, _HF, _EqK, _Al>&);
+#else /* __STL_MEMBER_TEMPLATES */
   friend bool __STD_QUALIFIER
   operator== __STL_NULL_TMPL_ARGS (const hash_multimap&,const hash_multimap&);
+#endif /* __STL_MEMBER_TEMPLATES */
 
   iterator begin() { return _M_ht.begin(); }
   iterator end() { return _M_ht.end(); }
@@ -429,6 +442,66 @@ swap(hash_multimap<_Key,_Tp,_HashFcn,_EqlKey,_Alloc>& __hm1,
 }
 
 #endif /* __STL_FUNCTION_TMPL_PARTIAL_ORDER */
+
+// Specialization of insert_iterator so that it will work for hash_map
+// and hash_multimap.
+
+#ifdef __STL_CLASS_PARTIAL_SPECIALIZATION
+
+template <class _Key, class _Tp, class _HashFn,  class _EqKey, class _Alloc>
+class insert_iterator<hash_map<_Key, _Tp, _HashFn, _EqKey, _Alloc> > {
+protected:
+  typedef hash_map<_Key, _Tp, _HashFn, _EqKey, _Alloc> _Container;
+  _Container* container;
+public:
+  typedef _Container          container_type;
+  typedef output_iterator_tag iterator_category;
+  typedef void                value_type;
+  typedef void                difference_type;
+  typedef void                pointer;
+  typedef void                reference;
+
+  insert_iterator(_Container& __x) : container(&__x) {}
+  insert_iterator(_Container& __x, typename _Container::iterator)
+    : container(&__x) {}
+  insert_iterator<_Container>&
+  operator=(const typename _Container::value_type& __value) { 
+    container->insert(__value);
+    return *this;
+  }
+  insert_iterator<_Container>& operator*() { return *this; }
+  insert_iterator<_Container>& operator++() { return *this; }
+  insert_iterator<_Container>& operator++(int) { return *this; }
+};
+
+template <class _Key, class _Tp, class _HashFn,  class _EqKey, class _Alloc>
+class insert_iterator<hash_multimap<_Key, _Tp, _HashFn, _EqKey, _Alloc> > {
+protected:
+  typedef hash_multimap<_Key, _Tp, _HashFn, _EqKey, _Alloc> _Container;
+  _Container* container;
+  typename _Container::iterator iter;
+public:
+  typedef _Container          container_type;
+  typedef output_iterator_tag iterator_category;
+  typedef void                value_type;
+  typedef void                difference_type;
+  typedef void                pointer;
+  typedef void                reference;
+
+  insert_iterator(_Container& __x) : container(&__x) {}
+  insert_iterator(_Container& __x, typename _Container::iterator)
+    : container(&__x) {}
+  insert_iterator<_Container>&
+  operator=(const typename _Container::value_type& __value) { 
+    container->insert(__value);
+    return *this;
+  }
+  insert_iterator<_Container>& operator*() { return *this; }
+  insert_iterator<_Container>& operator++() { return *this; }
+  insert_iterator<_Container>& operator++(int) { return *this; }
+};
+
+#endif /* __STL_CLASS_PARTIAL_SPECIALIZATION */
 
 #if defined(__sgi) && !defined(__GNUC__) && (_MIPS_SIM != _MIPS_SIM_ABI32)
 #pragma reset woff 1174

@@ -65,7 +65,7 @@ struct _Pthread_alloc_per_thread_state {
 	// created thread.
   _Pthread_alloc_per_thread_state() : __next(0)
   {
-    memset((void *)__free_list, 0, _S_NFREELISTS * sizeof(__obj *));
+    memset((void *)__free_list, 0, (size_t) _S_NFREELISTS * sizeof(__obj *));
   }
   // Returns an object of size __n, and possibly adds to size n free list.
   void *_M_refill(size_t __n);
@@ -89,10 +89,10 @@ public: // but only for internal use:
   enum {_S_ALIGN = __STL_DATA_ALIGNMENT};
 
   static size_t _S_round_up(size_t __bytes) {
-        return (((__bytes) + _S_ALIGN-1) & ~(_S_ALIGN - 1));
+        return (((__bytes) + (int) _S_ALIGN-1) & ~((int) _S_ALIGN - 1));
   }
   static size_t _S_freelist_index(size_t __bytes) {
-        return (((__bytes) + _S_ALIGN-1)/_S_ALIGN - 1);
+        return (((__bytes) + (int) _S_ALIGN-1)/(int)_S_ALIGN - 1);
   }
 
 private:

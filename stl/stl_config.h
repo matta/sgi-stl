@@ -35,6 +35,9 @@
 //   function.
 // * __STL_STATIC_TEMPLATE_MEMBER_BUG: defined if the compiler can't handle
 //   static members of template classes.
+// * __STL_STATIC_CONST_INIT_BUG: defined if the compiler can't handle a
+//   constant-initializer in the declaration of a static const data member
+//   of integer type.  (See section 9.4.2, paragraph 4, of the C++ standard.)
 // * __STL_CLASS_PARTIAL_SPECIALIZATION: defined if the compiler supports
 //   partial specialization of template classes.
 // * __STL_PARTIAL_SPECIALIZATION_SYNTAX: defined if the compiler 
@@ -76,6 +79,9 @@
 //   compiler in multithreaded mode.
 // * __STL_PTHREADS: defined if we should use portable pthreads
 //   synchronization.
+// * __STL_UITHREADS: defined if we should use UI / solaris / UnixWare threads
+//   synchronization.  UIthreads are similar to pthreads, but are based 
+//   on an earlier version of the Posix threads standard.
 // * __STL_LONG_LONG if the compiler has long long and unsigned long long
 //   types.  (They're not in the C++ standard, but they are expected to be 
 //   included in the forthcoming C9X standard.)
@@ -98,6 +104,8 @@
 // * __STL_ASSERTIONS: if defined, then enable runtime checking through the
 //   __stl_assert macro.
 // * _PTHREADS: if defined, use Posix threads for multithreading support.
+// * _UITHREADS:if defined, use SCO/Solaris/UI threads for multithreading 
+//   support
 // * _NOTHREADS: if defined, don't use any multithreading support.  
 // * __STL_USE_NEW_IOSTREAMS: if defined, then the STL will use new,
 //   standard-conforming iostreams (e.g. the <iosfwd> header).  If not
@@ -118,10 +126,17 @@
 #     define __STL_PTHREADS
 # endif
 
+# if defined(_UITHREADS) && !defined(_PTHREADS) && !defined(_NOTHREADS)
+#     define __STL_UITHREADS
+# endif
+
 # if defined(__sgi) && !defined(__GNUC__)
 #   include <standards.h>
 #   if !defined(_BOOL)
 #     define __STL_NO_BOOL
+#   endif
+#   if defined(_MIPS_SIM) && _MIPS_SIM == _ABIO32
+#     define __STL_STATIC_CONST_INIT_BUG
 #   endif
 #   if defined(_WCHAR_T_IS_KEYWORD)
 #     define __STL_HAS_WCHAR_T 
@@ -132,7 +147,7 @@
 #   ifdef _PARTIAL_SPECIALIZATION_OF_CLASS_TEMPLATES
 #     define __STL_CLASS_PARTIAL_SPECIALIZATION
 #   endif
-#   if (_COMPILER_VERSION >= 730) && defined(_MIPS_SIM) && _MIPS_SIM != _ABI32
+#   if (_COMPILER_VERSION >= 730) && defined(_MIPS_SIM) && _MIPS_SIM != _ABIO32
 #     define __STL_FUNCTION_TMPL_PARTIAL_ORDER
 #   endif
 #   ifdef _MEMBER_TEMPLATES
@@ -145,10 +160,10 @@
 #   if defined(_STANDARD_C_PLUS_PLUS)
 #     define __STL_EXPLICIT_FUNCTION_TMPL_ARGS
 #   endif
-#   if (_COMPILER_VERSION >= 730) && defined(_MIPS_SIM) && _MIPS_SIM != _ABI32
+#   if (_COMPILER_VERSION >= 730) && defined(_MIPS_SIM) && _MIPS_SIM != _ABIO32
 #     define __STL_MEMBER_TEMPLATE_KEYWORD
 #   endif
-#   if defined(_MIPS_SIM) && _MIPS_SIM != _MIPS_SIM_ABI32
+#   if defined(_MIPS_SIM) && _MIPS_SIM == _ABIO32
 #     define __STL_DEFAULT_CONSTRUCTOR_BUG
 #   endif
 #   if !defined(_EXPLICIT_IS_KEYWORD)
@@ -184,6 +199,39 @@
 #   endif
 # endif
 
+
+/*
+ * Jochen Schlick '1999  - added new #defines (__STL)_UITHREADS (for 
+ *                         providing SCO / Solaris / UI thread support)
+ *                       - added the necessary defines for the SCO UDK 7 
+ *                         compiler (and its template friend behavior)
+ *                       - all UDK7 specific STL changes are based on the 
+ *                         macro __USLC__ being defined
+ */
+// SCO UDK 7 compiler (UnixWare 7x, OSR 5, UnixWare 2x)
+# if defined(__USLC__)
+#     define __STL_HAS_WCHAR_T 
+#     define __STL_CLASS_PARTIAL_SPECIALIZATION
+#     define __STL_PARTIAL_SPECIALIZATION_SYNTAX
+#     define __STL_FUNCTION_TMPL_PARTIAL_ORDER
+#     define __STL_MEMBER_TEMPLATES
+#     define __STL_MEMBER_TEMPLATE_CLASSES
+#     define __STL_USE_EXCEPTIONS
+#     define __STL_HAS_NAMESPACES
+#     define __STL_USE_NAMESPACES
+#     define __STL_LONG_LONG
+#     if defined(_REENTRANT)
+#           define _UITHREADS     /* if      UnixWare < 7.0.1 */
+#           define __STL_UITHREADS
+//   use the following defines instead of the UI threads defines when
+//   you want to use POSIX threads
+//#         define _PTHREADS      /* only if UnixWare >=7.0.1 */
+//#         define __STL_PTHREADS
+#     endif
+# endif
+
+
+
 # ifdef __GNUC__
 #   if __GNUC__ == 2 && __GNUC_MINOR__ <= 7
 #     define __STL_STATIC_TEMPLATE_MEMBER_BUG
@@ -202,6 +250,7 @@
       //    template nested classes.
 #     if __GNUC_MINOR__ >= 9
 #       define __STL_MEMBER_TEMPLATE_CLASSES
+#       define __SGI_STL_USE_AUTO_PTR_CONVERSIONS
 #     endif
 #   endif
 #   define __STL_DEFAULT_CONSTRUCTOR_BUG
@@ -233,19 +282,44 @@
 #   define __STL_CLASS_PARTIAL_SPECIALIZATION
 #   define __STL_USE_EXCEPTIONS
 #   define __STL_HAS_NAMESPACES
-#   define __STL_CAN_THROW_RANGE_ERRORS
 # endif
 
-# if defined(_MSC_VER)
+// Intel compiler, which uses the EDG front end.
+# if defined(__ICL)
+#   define __STL_LONG_LONG 
+#   define __STL_MEMBER_TEMPLATES
+#   define __STL_MEMBER_TEMPLATE_CLASSES
+#   define __STL_FUNCTION_TMPL_PARTIAL_ORDER
+#   define __STL_CLASS_PARTIAL_SPECIALIZATION
 #   define __STL_NO_DRAND48
+#   define __STL_HAS_NAMESPACES
+#   define __STL_USE_EXCEPTIONS
+#   define __STL_MEMBER_TEMPLATE_KEYWORD
+#   ifdef _CPPUNWIND
+#     define __STL_USE_EXCEPTIONS
+#   endif
+#   ifdef _MT
+#     define __STL_WIN32THREADS
+#   endif
+# endif
+
+// Mingw32, EGCS compiler using the Microsoft C runtime
+# if defined(__MINGW32__)
+#   define __STL_NO_DRAND48
+# endif
+
+// Microsoft compiler.
+# if defined(_MSC_VER) && !defined(__ICL)
+#   define __STL_NO_DRAND48
+#   define __STL_STATIC_CONST_INIT_BUG
 #   define __STL_NEED_TYPENAME
 #   if _MSC_VER < 1100  /* 1000 is version 4.0, 1100 is 5.0, 1200 is 6.0. */
 #     define __STL_NEED_EXPLICIT
 #     define __STL_NO_BOOL
-#     if  _MSC_VER > 1000
-#       include <yvals.h>
-#       define __STL_DONT_USE_BOOL_TYPEDEF
-#     endif
+#   endif
+#   if _MSC_VER > 1000
+#     include <yvals.h>
+#     define __STL_DONT_USE_BOOL_TYPEDEF
 #   endif
 #   define __STL_NON_TYPE_TMPL_PARAM_BUG
 #   define __SGI_STL_NO_ARROW_OPERATOR
@@ -272,6 +346,7 @@
 # endif
 
 # if defined(__BORLANDC__)
+#   define __STL_NO_BAD_ALLOC
 #   define __STL_NO_DRAND48
 #   define __STL_NEED_TYPENAME
 #   define __STL_LIMITED_DEFAULT_TEMPLATES
@@ -418,7 +493,7 @@
 #endif
 
 #if defined(__STL_WIN32THREADS) || defined(STL_SGI_THREADS) \
-    || defined(__STL_PTHREADS)
+    || defined(__STL_PTHREADS)  || defined(__STL_UITHREADS)
 #   define __STL_THREADS
 #   define __STL_VOLATILE volatile
 #else

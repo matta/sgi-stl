@@ -72,6 +72,18 @@ inline void __slist_splice_after(_Slist_node_base* __pos,
   }
 }
 
+inline void
+__slist_splice_after(_Slist_node_base* __pos, _Slist_node_base* __head)
+{
+  _Slist_node_base* __before_last = __slist_previous(__head, 0);
+  if (__before_last != __head) {
+    _Slist_node_base* __after = __pos->_M_next;
+    __pos->_M_next = __head->_M_next;
+    __head->_M_next = 0;
+    __before_last->_M_next = __after;
+  }
+}
+
 inline _Slist_node_base* __slist_reverse(_Slist_node_base* __node)
 {
   _Slist_node_base* __result = __node;
@@ -422,6 +434,17 @@ public:
   iterator end() { return iterator(0); }
   const_iterator end() const { return const_iterator(0); }
 
+  // Experimental new feature: before_begin() returns a
+  // non-dereferenceable iterator that, when incremented, yields
+  // begin().  This iterator may be used as the argument to
+  // insert_after, erase_after, etc.  Note that even for an empty 
+  // slist, before_begin() is not the same iterator as end().  It 
+  // is always necessary to increment before_begin() at least once to
+  // obtain end().
+  iterator before_begin() { return iterator((_Node*) &_M_head); }
+  const_iterator before_begin() const
+    { return const_iterator((_Node*) &_M_head); }
+
   size_type size() const { return __slist_size(_M_head._M_next); }
   
   size_type max_size() const { return size_type(-1); }
@@ -630,6 +653,14 @@ public:
                          __prev._M_node, __prev._M_node->_M_next);
   }
 
+
+  // Removes all of the elements from the list __x to *this, inserting
+  // them immediately after __pos.  __x must not be *this.  Complexity:
+  // linear in __x.size().
+  void splice_after(iterator __pos, slist& __x)
+  {
+    __slist_splice_after(__pos._M_node, &__x._M_head);
+  }
 
   // Linear in distance(begin(), __pos), and linear in __x.size().
   void splice(iterator __pos, slist& __x) {
@@ -958,6 +989,45 @@ void slist<_Tp,_Alloc>::sort(_StrictWeakOrdering __comp)
 }
 
 #endif /* __STL_MEMBER_TEMPLATES */
+
+// Specialization of insert_iterator so that insertions will be constant
+// time rather than linear time.
+
+#ifdef __STL_CLASS_PARTIAL_SPECIALIZATION
+
+template <class _Tp, class _Alloc>
+class insert_iterator<slist<_Tp, _Alloc> > {
+protected:
+  typedef slist<_Tp, _Alloc> _Container;
+  _Container* container;
+  typename _Container::iterator iter;
+public:
+  typedef _Container          container_type;
+  typedef output_iterator_tag iterator_category;
+  typedef void                value_type;
+  typedef void                difference_type;
+  typedef void                pointer;
+  typedef void                reference;
+
+  insert_iterator(_Container& __x, typename _Container::iterator __i) 
+    : container(&__x) {
+    if (__i == __x.begin())
+      iter = __x.before_begin();
+    else
+      iter = __x.previous(__i);
+  }
+
+  insert_iterator<_Container>&
+  operator=(const typename _Container::value_type& __value) { 
+    iter = container->insert_after(iter, __value);
+    return *this;
+  }
+  insert_iterator<_Container>& operator*() { return *this; }
+  insert_iterator<_Container>& operator++() { return *this; }
+  insert_iterator<_Container>& operator++(int) { return *this; }
+};
+
+#endif /* __STL_CLASS_PARTIAL_SPECIALIZATION */
 
 #if defined(__sgi) && !defined(__GNUC__) && (_MIPS_SIM != _MIPS_SIM_ABI32)
 #pragma reset woff 1174

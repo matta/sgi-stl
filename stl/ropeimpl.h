@@ -840,6 +840,7 @@ class _Rope_insert_char_consumer : public _Rope_char_consumer<_CharT> {
   }
 
 
+  __STL_TEMPLATE_NULL
   inline bool _Rope_insert_char_consumer<char>::operator()
 					(const char* __leaf, size_t __n)
   {

@@ -49,10 +49,20 @@ bool operator<(const stack<_Tp,_Seq>& __x, const stack<_Tp,_Seq>& __y);
 template <class _Tp, class _Sequence>
 class stack {
 
+#ifdef __STL_MEMBER_TEMPLATES
+  template <class _Tp1, class _Seq1>
+  friend bool operator== (const stack<_Tp1, _Seq1>&,
+                          const stack<_Tp1, _Seq1>&);
+  template <class _Tp1, class _Seq1>
+  friend bool operator< (const stack<_Tp1, _Seq1>&,
+                         const stack<_Tp1, _Seq1>&);
+#else /* __STL_MEMBER_TEMPLATES */
   friend bool __STD_QUALIFIER
   operator== __STL_NULL_TMPL_ARGS (const stack&, const stack&);
   friend bool __STD_QUALIFIER
   operator< __STL_NULL_TMPL_ARGS (const stack&, const stack&);
+#endif /* __STL_MEMBER_TEMPLATES */
+
 public:
   typedef typename _Sequence::value_type      value_type;
   typedef typename _Sequence::size_type       size_type;
