@@ -31,6 +31,8 @@
 #ifndef __SGI_STL_INTERNAL_HASH_SET_H
 #define __SGI_STL_INTERNAL_HASH_SET_H
 
+#include <concept_checks.h>
+
 __STL_BEGIN_NAMESPACE
 
 #if defined(__sgi) && !defined(__GNUC__) && (_MIPS_SIM != _MIPS_SIM_ABI32)
@@ -54,6 +56,12 @@ operator==(const hash_set<_Value,_HashFcn,_EqualKey,_Alloc>& __hs1,
 template <class _Value, class _HashFcn, class _EqualKey, class _Alloc>
 class hash_set
 {
+  // requirements:
+
+  __STL_CLASS_REQUIRES(_Value, _Assignable);
+  __STL_CLASS_UNARY_FUNCTION_CHECK(_HashFcn, size_t, _Value);
+  __STL_CLASS_BINARY_FUNCTION_CHECK(_EqualKey, bool, _Value, _Value);
+
 private:
   typedef hashtable<_Value, _Value, _HashFcn, _Identity<_Value>, 
                     _EqualKey, _Alloc> _Ht;
@@ -252,6 +260,12 @@ operator==(const hash_multiset<_Val,_HashFcn,_EqualKey,_Alloc>& __hs1,
 template <class _Value, class _HashFcn, class _EqualKey, class _Alloc>
 class hash_multiset
 {
+  // requirements:
+
+  __STL_CLASS_REQUIRES(_Value, _Assignable);
+  __STL_CLASS_UNARY_FUNCTION_CHECK(_HashFcn, size_t, _Value);
+  __STL_CLASS_BINARY_FUNCTION_CHECK(_EqualKey, bool, _Value, _Value);
+
 private:
   typedef hashtable<_Value, _Value, _HashFcn, _Identity<_Value>, 
                     _EqualKey, _Alloc> _Ht;

@@ -25,7 +25,8 @@ __STL_BEGIN_NAMESPACE
 
 // Class __char_traits_base.
 
-template <class _CharT, class _IntT> struct __char_traits_base {
+template <class _CharT, class _IntT> class __char_traits_base {
+public:
   typedef _CharT char_type;
   typedef _IntT int_type;
 #ifdef __STL_USE_NEW_IOSTREAMS
@@ -105,15 +106,24 @@ template <class _CharT, class _IntT> struct __char_traits_base {
 //  as is for any particular user-defined type.  In particular, it 
 //  *will not work* for a non-POD type.
 
-template <class _CharT> struct char_traits
+template <class _CharT> class char_traits
   : public __char_traits_base<_CharT, _CharT>
 {};
 
 // Specialization for char.
 
-__STL_TEMPLATE_NULL struct char_traits<char> 
+__STL_TEMPLATE_NULL class char_traits<char> 
   : public __char_traits_base<char, int>
 {
+public:
+  static char_type to_char_type(const int_type& __c) {
+    return static_cast<char_type>(static_cast<unsigned char>(__c));
+  }
+
+  static int_type to_int_type(const char_type& __c) {
+    return static_cast<unsigned char>(__c);
+  }
+
   static int compare(const char* __s1, const char* __s2, size_t __n) 
     { return memcmp(__s1, __s2, __n); }
   
@@ -127,44 +137,10 @@ __STL_TEMPLATE_NULL struct char_traits<char>
 
 // Specialization for wchar_t.
 
-__STL_TEMPLATE_NULL struct char_traits<wchar_t>
+__STL_TEMPLATE_NULL class char_traits<wchar_t>
   : public __char_traits_base<wchar_t, wint_t>
 {};
 
-// Helper classes that turn char_traits into function objects.
-
-template <class _Traits>
-struct _Eq_traits
-  : public binary_function<typename _Traits::char_type,
-                           typename _Traits::char_type,
-                           bool>
-{
-  bool operator()(const typename _Traits::char_type& __x,
-                  const typename _Traits::char_type& __y) const
-    { return _Traits::eq(__x, __y); }
-};
-
-template <class _Traits>
-struct _Eq_int_traits
-  : public binary_function<typename _Traits::char_type,
-                           typename _Traits::int_type,
-                           bool>
-{
-  bool operator()(const typename _Traits::char_type& __x,
-                  const typename _Traits::int_type& __y) const
-    { return _Traits::eq_int_type(_Traits::to_int_type(__x), __y); }
-};
-
-template <class _Traits>
-struct _Lt_traits
-  : public binary_function<typename _Traits::char_type,
-                           typename _Traits::char_type,
-                           bool>
-{
-  bool operator()(const typename _Traits::char_type& __x,
-                  const typename _Traits::char_type& __y) const
-    { return _Traits::lt(__x, __y); }
-};
 
 __STL_END_NAMESPACE
 

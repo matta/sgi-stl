@@ -18,6 +18,7 @@
 #include <stl_string_fwd.h>
 #include <ctype.h>        
 #include <functional>
+#include <stl_ctraits_fns.h>
 #include <stdexcept>      
 #include <stl_iterator_base.h>
 #include <memory>
@@ -367,7 +368,7 @@ public:                         // Constructor, destructor, assignment.
   basic_string& operator=(_CharT __c)
     { return assign(static_cast<size_type>(1), __c); }
 
-private:                        // Protected members inherited from base.
+protected:                      // Protected members inherited from base.
 #ifdef __STL_HAS_NAMESPACES
   using _Base::_M_allocate;
   using _Base::_M_deallocate;
@@ -1618,7 +1619,7 @@ basic_string<_CharT,_Traits,_Alloc>::size_type
 basic_string<_CharT,_Traits,_Alloc>
   ::find(const _CharT* __s, size_type __pos, size_type __n) const 
 {
-  if (__pos >= size())
+  if (__pos + __n > size())
     return npos;
   else {
     const const_iterator __result =
@@ -2035,7 +2036,7 @@ __sgi_string_fill(basic_ostream<_CharT, _Traits>& __os,
   bool __ok = true;
 
   for (__i = 0; __i < __n; __i++)
-    __ok == __ok && !_Traits::eq_int_type(__buf->sputc(__f), _Traits::eof());
+    __ok = __ok && !_Traits::eq_int_type(__buf->sputc(__f), _Traits::eof());
   return __ok;
 }
 
@@ -2055,15 +2056,14 @@ operator<<(basic_ostream<_CharT, _Traits>& __os,
     const size_t __w = __os.width(0);
     basic_streambuf<_CharT, _Traits>* __buf = __os.rdbuf();
 
-    if (__w > 0) {
-      __n = min(__w, __n);
+    if (__w != 0 && __n < __w)
       __pad_len = __w - __n;
-    }
     
     if (!__left)
       __ok = __sgi_string_fill(__os, __buf, __pad_len);    
 
-    __ok = __ok && __buf->sputn(__s.data(), __n) == __n;
+    __ok = __ok && 
+           __buf->sputn(__s.data(), streamsize(__n)) == streamsize(__n);
 
     if (__left)
       __ok = __ok && __sgi_string_fill(__os, __buf, __pad_len);
@@ -2103,7 +2103,7 @@ operator>>(basic_istream<_CharT, _Traits>& __is,
       else {
         _CharT __c = _Traits::to_char_type(__c1);
 
-        if (__ctype.is(ctype_base::space, __c)) {
+        if (__ctype.is(ctype<_CharT>::space, __c)) {
           if (_Traits::eq_int_type(__buf->sputbackc(__c), _Traits::eof()))
             __is.setstate(ios_base::failbit);
           break;
@@ -2236,20 +2236,19 @@ istream& operator>>(istream& __is, basic_string<_CharT,_Traits,_Alloc>& __s)
     }
 #else
     if (__is.flags() & ios::skipws) {
-      _CharT __c;
+      int __c;
       do {
-        int __c1 = __buf->sbumpc();
-        if (__c1 == EOF) {
-          __is.clear(__is.rdstate() | ios::eofbit | ios::failbit);
-          break;
-        }
-        else
-          __c = _Traits::to_char_type(__c1);
+        __c = __buf->sbumpc();
       }
-      while (isspace((unsigned char) __c));
+      while (__c != EOF && isspace((unsigned char)__c));
 
-      if (__buf->sputbackc(__c) == EOF)
-        __is.clear(__is.rdstate() | ios::failbit);
+      if (__c == EOF) {
+        __is.clear(__is.rdstate() | ios::eofbit | ios::failbit);
+      }
+      else {
+        if (__buf->sputbackc(__c) == EOF)
+          __is.clear(__is.rdstate() | ios::failbit);
+      }
     }
 #endif
 
@@ -2355,7 +2354,7 @@ void _S_string_copy(const basic_string<_CharT,_Traits,_Alloc>& __s,
   }
 }
 
-static const char* __get_c_string(const string& __s) { return __s.c_str(); }
+inline const char* __get_c_string(const string& __s) { return __s.c_str(); }
 
 // ------------------------------------------------------------
 // Typedefs

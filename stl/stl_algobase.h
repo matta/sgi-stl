@@ -41,7 +41,7 @@
 #ifndef __SGI_STL_INTERNAL_PAIR_H
 #include <stl_pair.h>
 #endif
-#ifndef __TYPE_TRAITS_H_
+#ifndef __TYPE_TRAITS_H
 #include <type_traits.h>
 #endif
 
@@ -62,6 +62,8 @@
 #include <stl_iterator.h>
 #endif
 
+// We pick up concept_checks.h from stl_iterator_base.h.
+
 __STL_BEGIN_NAMESPACE
 
 // swap and iter_swap
@@ -75,11 +77,18 @@ inline void __iter_swap(_ForwardIter1 __a, _ForwardIter2 __b, _Tp*) {
 
 template <class _ForwardIter1, class _ForwardIter2>
 inline void iter_swap(_ForwardIter1 __a, _ForwardIter2 __b) {
+  __STL_REQUIRES(_ForwardIter1, _Mutable_ForwardIterator);
+  __STL_REQUIRES(_ForwardIter2, _Mutable_ForwardIterator);
+  __STL_CONVERTIBLE(typename iterator_traits<_ForwardIter1>::value_type,
+                    typename iterator_traits<_ForwardIter2>::value_type);
+  __STL_CONVERTIBLE(typename iterator_traits<_ForwardIter2>::value_type,
+                    typename iterator_traits<_ForwardIter1>::value_type);
   __iter_swap(__a, __b, __VALUE_TYPE(__a));
 }
 
 template <class _Tp>
 inline void swap(_Tp& __a, _Tp& __b) {
+  __STL_REQUIRES(_Tp, _Assignable);
   _Tp __tmp = __a;
   __a = __b;
   __b = __tmp;
@@ -88,18 +97,20 @@ inline void swap(_Tp& __a, _Tp& __b) {
 //--------------------------------------------------
 // min and max
 
-#ifndef __BORLANDC__
+#if !defined(__BORLANDC__) || __BORLANDC__ >= 0x540 /* C++ Builder 4.0 */
 
 #undef min
 #undef max
 
 template <class _Tp>
 inline const _Tp& min(const _Tp& __a, const _Tp& __b) {
+  __STL_REQUIRES(_Tp, _LessThanComparable);
   return __b < __a ? __b : __a;
 }
 
 template <class _Tp>
 inline const _Tp& max(const _Tp& __a, const _Tp& __b) {
+  __STL_REQUIRES(_Tp, _LessThanComparable);
   return  __a < __b ? __b : __a;
 }
 
@@ -172,11 +183,15 @@ inline _OutputIter __copy_aux2(_InputIter __first, _InputIter __last,
                 __DISTANCE_TYPE(__first));
 }
 
+#ifndef __USLC__
+
 template <class _Tp>
 inline _Tp* __copy_aux2(_Tp* __first, _Tp* __last, _Tp* __result,
                         __true_type) {
   return __copy_trivial(__first, __last, __result);
 }
+
+#endif /* __USLC__ */
 
 template <class _Tp>
 inline _Tp* __copy_aux2(const _Tp* __first, const _Tp* __last, _Tp* __result,
@@ -196,6 +211,8 @@ inline _OutputIter __copy_aux(_InputIter __first, _InputIter __last,
 template <class _InputIter, class _OutputIter>
 inline _OutputIter copy(_InputIter __first, _InputIter __last,
                         _OutputIter __result) {
+  __STL_REQUIRES(_InputIter, _InputIterator);
+  __STL_REQUIRES(_OutputIter, _OutputIterator);
   return __copy_aux(__first, __last, __result, __VALUE_TYPE(__first));
 }
 
@@ -232,6 +249,8 @@ struct __copy_dispatch<const _Tp*, _Tp*, __true_type>
 template <class _InputIter, class _OutputIter>
 inline _OutputIter copy(_InputIter __first, _InputIter __last,
                         _OutputIter __result) {
+  __STL_REQUIRES(_InputIter, _InputIterator);
+  __STL_REQUIRES(_OutputIter, _OutputIterator);
   typedef typename iterator_traits<_InputIter>::value_type _Tp;
   typedef typename __type_traits<_Tp>::has_trivial_assignment_operator
           _Trivial;
@@ -255,7 +274,8 @@ inline _OutputIter copy(_InputIter __first, _InputIter __last,
 
 #define __SGI_STL_DECLARE_COPY_TRIVIAL(_Tp)                                \
   inline _Tp* copy(const _Tp* __first, const _Tp* __last, _Tp* __result) { \
-    return __copy_trivial(__first, __last, __result);                      \
+    memmove(__result, __first, sizeof(_Tp) * (__last - __first));          \
+    return __result + (__last - __first);                                  \
   }
 
 __SGI_STL_DECLARE_COPY_TRIVIAL(char)
@@ -353,6 +373,10 @@ struct __copy_backward_dispatch<const _Tp*, _Tp*, __true_type>
 
 template <class _BI1, class _BI2>
 inline _BI2 copy_backward(_BI1 __first, _BI1 __last, _BI2 __result) {
+  __STL_REQUIRES(_BI1, _BidirectionalIterator);
+  __STL_REQUIRES(_BI2, _Mutable_BidirectionalIterator);
+  __STL_CONVERTIBLE(typename iterator_traits<_BI1>::value_type,
+                    typename iterator_traits<_BI2>::value_type);
   typedef typename __type_traits<typename iterator_traits<_BI2>::value_type>
                         ::has_trivial_assignment_operator
           _Trivial;
@@ -405,6 +429,8 @@ __copy_n(_InputIter __first, _Size __count, _OutputIter __result) {
 template <class _InputIter, class _Size, class _OutputIter>
 inline pair<_InputIter, _OutputIter>
 copy_n(_InputIter __first, _Size __count, _OutputIter __result) {
+  __STL_REQUIRES(_InputIter, _InputIterator);
+  __STL_REQUIRES(_OutputIter, _OutputIterator);
   return __copy_n(__first, __count, __result);
 }
 
@@ -414,16 +440,61 @@ copy_n(_InputIter __first, _Size __count, _OutputIter __result) {
 
 template <class _ForwardIter, class _Tp>
 void fill(_ForwardIter __first, _ForwardIter __last, const _Tp& __value) {
+  __STL_REQUIRES(_ForwardIter, _Mutable_ForwardIterator);
   for ( ; __first != __last; ++__first)
     *__first = __value;
 }
 
 template <class _OutputIter, class _Size, class _Tp>
 _OutputIter fill_n(_OutputIter __first, _Size __n, const _Tp& __value) {
+  __STL_REQUIRES(_OutputIter, _OutputIterator);
   for ( ; __n > 0; --__n, ++__first)
     *__first = __value;
   return __first;
 }
+
+// Specialization: for one-byte types we can use memset.
+
+inline void fill(unsigned char* __first, unsigned char* __last,
+                 const unsigned char& __c) {
+  unsigned char __tmp = __c;
+  memset(__first, __tmp, __last - __first);
+}
+
+inline void fill(signed char* __first, signed char* __last,
+                 const signed char& __c) {
+  signed char __tmp = __c;
+  memset(__first, static_cast<unsigned char>(__tmp), __last - __first);
+}
+
+inline void fill(char* __first, char* __last, const char& __c) {
+  char __tmp = __c;
+  memset(__first, static_cast<unsigned char>(__tmp), __last - __first);
+}
+
+#ifdef __STL_FUNCTION_TMPL_PARTIAL_ORDER
+
+template <class _Size>
+inline unsigned char* fill_n(unsigned char* __first, _Size __n,
+                             const unsigned char& __c) {
+  fill(__first, __first + __n, __c);
+  return __first + __n;
+}
+
+template <class _Size>
+inline signed char* fill_n(char* __first, _Size __n,
+                           const signed char& __c) {
+  fill(__first, __first + __n, __c);
+  return __first + __n;
+}
+
+template <class _Size>
+inline char* fill_n(char* __first, _Size __n, const char& __c) {
+  fill(__first, __first + __n, __c);
+  return __first + __n;
+}
+
+#endif /* __STL_FUNCTION_TMPL_PARTIAL_ORDER */
 
 //--------------------------------------------------
 // equal and mismatch
@@ -432,6 +503,12 @@ template <class _InputIter1, class _InputIter2>
 pair<_InputIter1, _InputIter2> mismatch(_InputIter1 __first1,
                                         _InputIter1 __last1,
                                         _InputIter2 __first2) {
+  __STL_REQUIRES(_InputIter1, _InputIterator);
+  __STL_REQUIRES(_InputIter2, _InputIterator);
+  __STL_REQUIRES(typename iterator_traits<_InputIter1>::value_type,
+                 _EqualityComparable);
+  __STL_REQUIRES(typename iterator_traits<_InputIter2>::value_type,
+                 _EqualityComparable);
   while (__first1 != __last1 && *__first1 == *__first2) {
     ++__first1;
     ++__first2;
@@ -444,6 +521,8 @@ pair<_InputIter1, _InputIter2> mismatch(_InputIter1 __first1,
                                         _InputIter1 __last1,
                                         _InputIter2 __first2,
                                         _BinaryPredicate __binary_pred) {
+  __STL_REQUIRES(_InputIter1, _InputIterator);
+  __STL_REQUIRES(_InputIter2, _InputIterator);
   while (__first1 != __last1 && __binary_pred(*__first1, *__first2)) {
     ++__first1;
     ++__first2;
@@ -454,6 +533,12 @@ pair<_InputIter1, _InputIter2> mismatch(_InputIter1 __first1,
 template <class _InputIter1, class _InputIter2>
 inline bool equal(_InputIter1 __first1, _InputIter1 __last1,
                   _InputIter2 __first2) {
+  __STL_REQUIRES(_InputIter1, _InputIterator);
+  __STL_REQUIRES(_InputIter2, _InputIterator);
+  __STL_REQUIRES(typename iterator_traits<_InputIter1>::value_type,
+                 _EqualityComparable);
+  __STL_REQUIRES(typename iterator_traits<_InputIter2>::value_type,
+                 _EqualityComparable);
   for ( ; __first1 != __last1; ++__first1, ++__first2)
     if (*__first1 != *__first2)
       return false;
@@ -463,6 +548,8 @@ inline bool equal(_InputIter1 __first1, _InputIter1 __last1,
 template <class _InputIter1, class _InputIter2, class _BinaryPredicate>
 inline bool equal(_InputIter1 __first1, _InputIter1 __last1,
                   _InputIter2 __first2, _BinaryPredicate __binary_pred) {
+  __STL_REQUIRES(_InputIter1, _InputIterator);
+  __STL_REQUIRES(_InputIter2, _InputIterator);
   for ( ; __first1 != __last1; ++__first1, ++__first2)
     if (!__binary_pred(*__first1, *__first2))
       return false;
@@ -476,6 +563,12 @@ inline bool equal(_InputIter1 __first1, _InputIter1 __last1,
 template <class _InputIter1, class _InputIter2>
 bool lexicographical_compare(_InputIter1 __first1, _InputIter1 __last1,
                              _InputIter2 __first2, _InputIter2 __last2) {
+  __STL_REQUIRES(_InputIter1, _InputIterator);
+  __STL_REQUIRES(_InputIter2, _InputIterator);
+  __STL_REQUIRES(typename iterator_traits<_InputIter1>::value_type,
+                 _LessThanComparable);
+  __STL_REQUIRES(typename iterator_traits<_InputIter2>::value_type,
+                 _LessThanComparable);
   for ( ; __first1 != __last1 && __first2 != __last2
         ; ++__first1, ++__first2) {
     if (*__first1 < *__first2)
@@ -490,6 +583,8 @@ template <class _InputIter1, class _InputIter2, class _Compare>
 bool lexicographical_compare(_InputIter1 __first1, _InputIter1 __last1,
                              _InputIter2 __first2, _InputIter2 __last2,
                              _Compare __comp) {
+  __STL_REQUIRES(_InputIter1, _InputIterator);
+  __STL_REQUIRES(_InputIter2, _InputIterator);
   for ( ; __first1 != __last1 && __first2 != __last2
         ; ++__first1, ++__first2) {
     if (__comp(*__first1, *__first2))
@@ -583,6 +678,12 @@ template <class _InputIter1, class _InputIter2>
 int lexicographical_compare_3way(_InputIter1 __first1, _InputIter1 __last1,
                                  _InputIter2 __first2, _InputIter2 __last2)
 {
+  __STL_REQUIRES(_InputIter1, _InputIterator);
+  __STL_REQUIRES(_InputIter2, _InputIterator);
+  __STL_REQUIRES(typename iterator_traits<_InputIter1>::value_type,
+                 _LessThanComparable);
+  __STL_REQUIRES(typename iterator_traits<_InputIter2>::value_type,
+                 _LessThanComparable);
   return __lexicographical_compare_3way(__first1, __last1, __first2, __last2);
 }
 

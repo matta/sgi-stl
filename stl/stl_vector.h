@@ -31,6 +31,8 @@
 #ifndef __SGI_STL_INTERNAL_VECTOR_H
 #define __SGI_STL_INTERNAL_VECTOR_H
 
+#include <concept_checks.h>
+
 __STL_BEGIN_NAMESPACE 
 
 #if defined(__sgi) && !defined(__GNUC__) && (_MIPS_SIM != _MIPS_SIM_ABI32)
@@ -152,6 +154,10 @@ protected:
 template <class _Tp, class _Alloc = __STL_DEFAULT_ALLOCATOR(_Tp) >
 class vector : protected _Vector_base<_Tp, _Alloc> 
 {
+  // requirements:
+
+  __STL_CLASS_REQUIRES(_Tp, _Assignable);
+
 private:
   typedef _Vector_base<_Tp, _Alloc> _Base;
 public:

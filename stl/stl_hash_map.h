@@ -31,6 +31,7 @@
 #ifndef __SGI_STL_INTERNAL_HASH_MAP_H
 #define __SGI_STL_INTERNAL_HASH_MAP_H
 
+#include <concept_checks.h>
 
 __STL_BEGIN_NAMESPACE
 
@@ -55,6 +56,13 @@ template <class _Key, class _Tp, class _HashFcn, class _EqualKey,
           class _Alloc>
 class hash_map
 {
+  // requirements:
+
+  __STL_CLASS_REQUIRES(_Key, _Assignable);
+  __STL_CLASS_REQUIRES(_Tp, _Assignable);
+  __STL_CLASS_UNARY_FUNCTION_CHECK(_HashFcn, size_t, _Key);
+  __STL_CLASS_BINARY_FUNCTION_CHECK(_EqualKey, bool, _Key, _Key);
+
 private:
   typedef hashtable<pair<const _Key,_Tp>,_Key,_HashFcn,
                     _Select1st<pair<const _Key,_Tp> >,_EqualKey,_Alloc> _Ht;
@@ -259,6 +267,13 @@ template <class _Key, class _Tp, class _HashFcn, class _EqualKey,
           class _Alloc>
 class hash_multimap
 {
+  // requirements:
+
+  __STL_CLASS_REQUIRES(_Key, _Assignable);
+  __STL_CLASS_REQUIRES(_Tp, _Assignable);
+  __STL_CLASS_UNARY_FUNCTION_CHECK(_HashFcn, size_t, _Key);
+  __STL_CLASS_BINARY_FUNCTION_CHECK(_EqualKey, bool, _Key, _Key);
+
 private:
   typedef hashtable<pair<const _Key, _Tp>, _Key, _HashFcn,
                     _Select1st<pair<const _Key, _Tp> >, _EqualKey, _Alloc> 

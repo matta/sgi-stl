@@ -27,10 +27,15 @@
 #ifndef __SGI_STL_MAP_H
 #define __SGI_STL_MAP_H
 
-#include <tree.h>
+#ifndef __SGI_STL_INTERNAL_TREE_H
+#include <stl_tree.h>
+#endif
+#include <algobase.h>
+#include <alloc.h>
 #include <stl_map.h>
 
 #ifdef __STL_USE_NAMESPACES
+using __STD::rb_tree;
 using __STD::map;
 #endif /* __STL_USE_NAMESPACES */
 
