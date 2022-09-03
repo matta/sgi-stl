@@ -1,0 +1,51 @@
+#!/usr/bin/env bash
+#
+# Copyright 2022 Matt Armstrong.
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License.  You may obtain
+# a copy of the License at
+#
+#      https://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+# License for the specific language governing permissions and limitations
+# under the License.
+
+# Run this from the root directory to populate stl/ with git commits from
+# each STL tarball.
+
+set -e
+set -u
+set -x
+
+declare -A stl_tags=(
+    [stl]=v3.3
+    [stl32]=v3.2
+    [stl313]=v3.13
+    [stl312]=v3.12
+    [stl311]=v3.11
+    [stl30]=v3.0
+    [stl203]=v2.03
+)
+
+if [[ -d stl ]]; then
+    echo "stl directory already exists"
+    exit 1
+fi
+mkdir stl
+cd stl
+for base in stl203 stl30 stl311 stl312 stl313 stl32 stl; do
+    git ls-files -z . | xargs -0 rm -f
+    tar xf ../originals/$base.tar.gz
+
+    export GIT_AUTHOR_DATE=$(
+        TZ=UTC find . -type f -printf "%TFT%TTZ\n" | sort -nr | head -1
+    )
+    git add -A .
+    message="STL ${stl_tags[${base}]}"
+    git commit -m "${message} from originals/${base}.tar.gz"
+    git tag -a "${stl_tags[${base}]}" -m "${message}"
+done
